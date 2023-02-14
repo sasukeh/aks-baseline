@@ -1,64 +1,66 @@
-# Generate your client-facing and AKS ingress controller TLS certificates
 
-Now that you have the [prerequisites](./01-prerequisites.md) met, follow the steps below to create the TLS certificates that Azure Application Gateway will serve for clients connecting to your web app as well as the AKS Ingress Controller. If you already have access to an appropriate certificates, or can procure them from your organization, consider doing so and skipping the certificate generation steps. The following will describe using a self-signed certs for instructive purposes only.
+# クライアント用 と AKS イングレスコントローラーの TLS証明書を生成する
 
-## Steps
+[前提条件](./01-prerequisites.md) を満たしたら、次の手順に従って、Azure Application Gateway がクライアントに提供する Web アプリケーションの TLS 証明書を作成します。既に適切な証明書にアクセスできるか、組織から取得できる場合は、それらを使用することを検討してください。証明書の生成手順をスキップします。以下は、説明のために自己署名証明書を使用する方法を説明します。
 
-1. Set a variable for the domain that will be used in the rest of this deployment.
+## 手順
+
+1. デプロイメントの残りの部分で使用されるドメインの変数を設定します。
 
    ```bash
    export DOMAIN_NAME_AKS_BASELINE="contoso.com"
    ```
 
-1. Generate a client-facing, self-signed TLS certificate.
+2. クライアント用の自己署名証明書を生成します
 
-   > :book: Contoso Bicycle needs to procure a CA certificate for the web site. As this is going to be a user-facing site, they purchase an EV cert from their CA. This will serve in front of the Azure Application Gateway. They will also procure another one, a standard cert, to be used with the AKS Ingress Controller. This one is not EV, as it will not be user facing.
+   > :book: ウェブサイトのための CA 証明書を取得する必要があります。このサイトはユーザーに公開されるため、EV 証明書を購入します。Azure Application Gateway の前に配置されます。また、AKS Ingress Controller に使用する別の証明書も取得します。この証明書は、ユーザーに公開されないため、EV 証明書ではありません。
 
-   :warning: Do not use the certificate created by this script for actual deployments. The use of self-signed certificates are provided for ease of illustration purposes only. For your cluster, use your organization's requirements for procurement and lifetime management of TLS certificates, _even for development purposes_.
+   :worning: このスクリプトで作成された証明書を実際のデプロイメントに使用しないでください。自己署名証明書の使用は、説明のために簡単にするためにのみ提供されています。クラスターの場合は、組織の要件に従って TLS 証明書の取得とライフタイム管理を行います。_開発目的であっても_。
 
-   Create the certificate that will be presented to web clients by Azure Application Gateway for your domain.
+   Azure Application Gateway がクライアントに提供するドメインの証明書を作成します。
 
    ```bash
    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -out appgw.crt -keyout appgw.key -subj "/CN=bicycle.${DOMAIN_NAME_AKS_BASELINE}/O=Contoso Bicycle" -addext "subjectAltName = DNS:bicycle.${DOMAIN_NAME_AKS_BASELINE}" -addext "keyUsage = digitalSignature" -addext "extendedKeyUsage = serverAuth"
    openssl pkcs12 -export -out appgw.pfx -in appgw.crt -inkey appgw.key -passout pass:
    ```
 
-1. Base64 encode the client-facing certificate.
+3. クライアント用の証明書を Base64 エンコードします。
 
-   :bulb: No matter if you used a certificate from your organization or you generated one from above, you'll need the certificate (as `.pfx`) to be Base64 encoded for proper storage in Key Vault later.
+   :bulb: 組織から証明書を使用した場合でも、上記の手順で生成した証明書を使用した場合でも、正しく Key Vault に格納するためには、証明書（`.pfx`）を Base64 エンコードする必要があります。
 
    ```bash
    export APP_GATEWAY_LISTENER_CERTIFICATE_AKS_BASELINE=$(cat appgw.pfx | base64 | tr -d '\n')
    echo APP_GATEWAY_LISTENER_CERTIFICATE_AKS_BASELINE: $APP_GATEWAY_LISTENER_CERTIFICATE_AKS_BASELINE
    ```
 
-1. Generate the wildcard certificate for the AKS ingress controller.
+4. AKS イングレスコントローラーのためにワイルドカード証明書を生成します。
 
-   > :book: Contoso Bicycle will also procure another TLS certificate, a standard cert, to be used with the AKS ingress controller. This one is not EV, as it will not be user facing. Finally the app team decides to use a wildcard certificate of `*.aks-ingress.contoso.com` for the ingress controller.
+   > :book: Contoso Bicycle は、AKS イングレスコントローラーで使用する別の TLS 証明書、標準証明書を取得します。これは、ユーザーに公開されないため、EV 証明書ではありません。最後に、アプリケーションチームは、AKS イングレスコントローラーのために `*.aks-ingress.contoso.com` のワイルドカード証明書を使用することを決定します。
 
    ```bash
    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -out traefik-ingress-internal-aks-ingress-tls.crt -keyout traefik-ingress-internal-aks-ingress-tls.key -subj "/CN=*.aks-ingress.${DOMAIN_NAME_AKS_BASELINE}/O=Contoso AKS Ingress"
    ```
 
-1. Base64 encode the AKS ingress controller certificate.
+5. AKS イングレスコントローラーの証明書を Base64 でエンコードします
 
-   :bulb: No matter if you used a certificate from your organization or you generated one from above, you'll need the public certificate (as `.crt` or `.cer`) to be Base64 encoded for proper storage in Key Vault later.
+   :bulb: 組織から証明書を使用した場合でも、上記の手順で生成した証明書を使用した場合でも、正しく Key Vault に格納するためには、公開証明書（`.crt` または `.cer`）を Base64 エンコードする必要があります。
 
-   ```bash
-   export AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_BASELINE=$(cat traefik-ingress-internal-aks-ingress-tls.crt | base64 | tr -d '\n')
-   echo AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_BASELINE: $AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_BASELINE
+   ```bash 
+   export AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE=$(cat traefik-ingress-internal-aks-ingress-tls.crt traefik-ingress-internal-aks-ingress-tls.key | base64 | tr -d '\n')
+   echo AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE: $AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE
    ```
 
 ### Save your work in-progress
 
+### 作業の途中経過を保存する
+
 ```bash
-# run the saveenv.sh script at any time to save environment variables created above to aks_baseline.env
+# aks_baseline.env への環境変数を保存するために、上記の saveenv.sh スクリプトをいつでも実行できます。
 ./saveenv.sh
 
-# if your terminal session gets reset, you can source the file to reload the environment variables
-# source aks_baseline.env
+# ターミナルセッションがリセットされた場合は、ファイルをソース化して環境変数を再読み込みできます。
 ```
 
-### Next step
+### 次のステップ
 
-:arrow_forward: [Prep for Azure Active Directory integration](./03-aad.md)
+:arrow_forward: [Azure Active Directory 統合のための準備](./03-aad.md)

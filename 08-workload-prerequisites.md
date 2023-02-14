@@ -1,16 +1,17 @@
-# Workload prerequisites
+# ワークロードの前提条件
 
-The AKS Cluster has been [bootstrapped](./07-bootstrap-validation.md), wrapping up the infrastructure focus of the [AKS baseline reference implementation](./). Follow the steps below to import the TLS certificate that the Ingress Controller will serve for Application Gateway to connect to your web app.
-
-## Steps
+AKS クラスターは [ブートストラップ](./07-bootstrap-validation.md) され、[AKS ベースライン リファレンス実装](./) のインフラストラクチャ フォーカスを終えました。次の手順に従って、Ingress コントローラーが Application Gateway に接続するために Web アプリケーションに提供する TLS 証明書をインポートします。
+## 手順
 
 ## Import the wildcard certificate for the AKS ingress controller to Azure Key Vault
 
 > :book: Contoso Bicycle procured a CA certificate, a standard one, to be used with the AKS ingress controller. This one is not EV, as it will not be user facing.
 
-1. Obtain the Azure Key Vault details and give the current user permissions and network access to import certificates.
+## AKS イングレスコントローラー のワイルドカード証明書を Azure Key Vault にインポートする
 
-   > :book: Finally the app team decides to use a wildcard certificate of `*.aks-ingress.contoso.com` for the ingress controller. They use Azure Key Vault to import and manage the lifecycle of this certificate.
+1. Azure Key Vault の詳細を取得し、現在のユーザーに証明書のインポート権限とネットワークアクセスを付与します。
+
+   > :book: Appチームは、AKS ingressコントローラーのワイルドカード証明書を`*.aks-ingress.contoso.com`として使用することを決定します。彼らはAzure Key Vaultを使用して、この証明書のライフサイクルを管理します。
 
    ```bash
    export KEYVAULT_NAME_AKS_BASELINE=$(az deployment group show --resource-group rg-bu0001a0008 -n cluster-stamp --query properties.outputs.keyVaultName.value -o tsv)
@@ -18,46 +19,47 @@ The AKS Cluster has been [bootstrapped](./07-bootstrap-validation.md), wrapping 
    TEMP_ROLEASSIGNMENT_TO_UPLOAD_CERT=$(az role assignment create --role a4417e6f-fecd-4de8-b567-7b0420556985 --assignee-principal-type user --assignee-object-id $(az ad signed-in-user show --query 'id' -o tsv) --scope $(az keyvault show --name $KEYVAULT_NAME_AKS_BASELINE --query 'id' -o tsv) --query 'id' -o tsv)
    echo TEMP_ROLEASSIGNMENT_TO_UPLOAD_CERT: $TEMP_ROLEASSIGNMENT_TO_UPLOAD_CERT
 
-   # If you are behind a proxy or some other egress that does not provide a consistent IP, you'll need to manually adjust the
-   # Azure Key Vault firewall to allow this traffic.
+   # もしプロキシやその他の出口が一貫したIPを提供しない場合は、このトラフィックを許可するためにAzure Key Vaultファイアウォールを手動で調整する必要があります。
    CURRENT_IP_ADDRESS=$(curl -s -4 https://ifconfig.io)
    echo CURRENT_IP_ADDRESS: $CURRENT_IP_ADDRESS
    az keyvault network-rule add -n $KEYVAULT_NAME_AKS_BASELINE --ip-address ${CURRENT_IP_ADDRESS}
    ```
 
-1. Import the AKS ingress controller's wildcard certificate for `*.aks-ingress.contoso.com`.
+2. AKS イングレスコントローラーのワイルドカード証明書 `*.aks-ingress.contoso.com` をインポートします。
 
-   :warning: If you already have access to an [appropriate certificate](https://learn.microsoft.com/azure/key-vault/certificates/certificate-scenarios#formats-of-import-we-support), or can procure one from your organization, consider using it for this step. For more information, please take a look at the [import certificate tutorial using Azure Key Vault](https://learn.microsoft.com/azure/key-vault/certificates/tutorial-import-certificate#import-a-certificate-to-key-vault).
+   :warning: 既に [適切な証明書](https://learn.microsoft.com/azure/key-vault/certificates/certificate-scenarios#formats-of-import-we-support) へのアクセスがある場合、または組織から取得できる場合は、このステップでそれを使用することを検討してください。詳細については、[Azure Key Vault を使用した証明書のインポートチュートリアル](https://learn.microsoft.com/azure/key-vault/certificates/tutorial-import-certificate#import-a-certificate-to-key-vault) を参照してください。
 
-   :warning: Do not use the certificate created by this script for actual deployments. The use of self-signed certificates are provided for ease of illustration purposes only. For your cluster, use your organization's requirements for procurement and lifetime management of TLS certificates, _even for development purposes_.
+   :warning: 実際のデプロイには、このスクリプトで作成された証明書を使用しないでください。自己署名証明書の使用は、説明のために簡単にするためにのみ提供されます。_開発目的であっても_ 、クラスターには、TLS 証明書の取得とライフタイム管理の組織の要件を使用してください。
 
    ```bash
    cat traefik-ingress-internal-aks-ingress-tls.crt traefik-ingress-internal-aks-ingress-tls.key > traefik-ingress-internal-aks-ingress-tls.pem
    az keyvault certificate import -f traefik-ingress-internal-aks-ingress-tls.pem -n traefik-ingress-internal-aks-ingress-tls --vault-name $KEYVAULT_NAME_AKS_BASELINE
    ```
 
-1. Remove Azure Key Vault import certificates permissions and network access for current user.
+3. Azure Key Vault からの証明書インポート権限とネットワークアクセスを現在のユーザーから削除します。
 
-   > The Azure Key Vault RBAC assignment for your user and network allowance was temporary to allow you to upload the certificate for this walkthrough. In actual deployments, you would manage these any RBAC policies via your ARM templates using [Azure RBAC for Key Vault data plane](https://learn.microsoft.com/azure/key-vault/general/secure-your-key-vault#data-plane-and-access-policies) and only network-allowed traffic would access your Key Vault.
+   > :book: このワークスルーで証明書をアップロードするために、Azure Key Vault RBAC割り当ては一時的に許可されていました。実際のデプロイでは、[Azure Key Vault データプレーンの Azure RBAC](https://learn.microsoft.com/azure/key-vault/general/secure-your-key-vault#data-plane-and-access-policies) を使用して、ARMテンプレートを介してこれらの任意のRBACポリシーを管理し、ネットワークアクセスを許可されたトラフィックのみがKey Vaultにアクセスするようにします。
 
    ```bash
    az keyvault network-rule remove -n $KEYVAULT_NAME_AKS_BASELINE --ip-address "${CURRENT_IP_ADDRESS}/32"
    az role assignment delete --ids $TEMP_ROLEASSIGNMENT_TO_UPLOAD_CERT
    ```
 
-## Check Azure Policies are in place
 
-> :book: The app team wants to apply Azure Policy over their cluster like they do other Azure resources. Their pods will be covered using the [Azure Policy add-on for AKS](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy). Some of these audits might end up in the denial of a specific Kubernetes API request operation to ensure the pod's specification is compliant with the organization's security best practices. Moreover [data is generated by Azure Policy](https://learn.microsoft.com/azure/governance/policy/how-to/get-compliance-data) to assist the app team in the process of assessing the current compliance state of the AKS cluster. The app team is going to assign at the resource group level the [Azure Policy for Kubernetes built-in restricted initiative](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy#built-in-policy-initiatives) as well as five more [built-in individual Azure policies](https://learn.microsoft.com/azure/aks/policy-samples#microsoftcontainerservice) that enforce that pods perform resource requests, define trusted container registries, mandate that root filesystem access is read-only, enforce the usage of internal load balancers, and enforce https-only Kubernetes Ingress objects.
->
-> Beyond that, internal governance requires the team to ensure that any public endpoint is exposed through a full-qualified domain name ends with a company-owned domain suffix. To enforce this for all endpoints exposed by the cluster's ingress controller, they define a custom policy using [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/) and leverage the capability to [deploy it via Azure Policy](https://learn.microsoft.com/azure/aks/use-azure-policy#create-and-assign-a-custom-policy-definition) to their cluster.
+## Azure Policy の適用を確認する
 
-1. Confirm policies are applied to the AKS cluster
+> :book: アプリチームは、他の Azure リソースと同様に AKS クラスターに Azure Policy を適用したいと考えています。彼らのポッドは、[Azure Policy アドオン for AKS](https://docs.microsoft.com/ja-jp/azure/governance/policy/concepts/policy-for-kubernetes) を使用してカバーされます。これらの監査のいくつかは、ポッドの仕様が組織のセキュリティベストプラクティスに準拠していることを確認するために、特定の Kubernetes API リクエスト操作を拒否することで終わる可能性があります。さらに、[Azure Policy によって生成されたデータ](https://docs.microsoft.com/ja-jp/azure/governance/policy/how-to/get-compliance-data) は、アプリチームが AKS クラスターの現在のコンプライアンス状態を評価するプロセスを支援するために使用されます。アプリチームは、リソース グループ レベルで [Azure Policy for Kubernetes built-in restricted initiative](https://docs.microsoft.com/ja-jp/azure/governance/policy/samples/policy-for-kubernetes) と、リソース要求を実行するようにポッドを定義し、信頼できるコンテナレジストリを定義し、ルートファイルシステムへのアクセスが読み取り専用であることを強制し、内部ロードバランサーの使用を強制し、https-only Kubernetes Ingress オブジェクトを強制する [built-in individual Azure policies](https://learn.microsoft.com/azure/aks/policy-samples#microsoftcontainerservice) の 5 つを適用するように割り当てます。
+> 
+> さらに、内部ガバナンスでは、チームが、パブリックエンドポイントが所有しているドメインサフィックスで終わる完全修飾ドメイン名を介して公開されていることを確認するように求められています。この要件を、クラスターの Ingress コントローラーによって公開されるすべてのエンドポイントに適用するために、[Gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/) を使用してカスタムポリシーを定義し、[Azure Policy を介してデプロイする](https://docs.microsoft.com/ja-jp/azure/governance/policy/concepts/rego-for-aks#deploy-a-custom-policy-definition) 機能を活用します。
+
+
+1. AKS クラスターへのポリシーの適用を確認する
 
    ```bash
    kubectl get constrainttemplate
    ```
 
-   A similar output as the one showed below should be returned
+   次のような出力が返されるはずです
 
    ```output
    NAME                                                 AGE
@@ -69,16 +71,16 @@ The AKS Cluster has been [bootstrapped](./07-bootstrap-validation.md), wrapping 
    k8scustomingresstlshostshavedefineddomainsuffix      21m
    ```
 
-### Save your work in-progress
+### 進捗を保存する
 
 ```bash
-# run the saveenv.sh script at any time to save environment variables created above to aks_baseline.env
+# saveenv.shスクリプトをいつでも実行して、上記で作成された環境変数を aks_baseline.env に保存します。
 ./saveenv.sh
 
-# if your terminal session gets reset, you can source the file to reload the environment variables
+# ターミナルセッションがリセットされた場合は、ファイルをソース化して環境変数を再読み込みできます。
 # source aks_baseline.env
 ```
 
-### Next step
+### 次のステップ
 
-:arrow_forward: [Configure AKS Ingress Controller with Azure Key Vault integration](./09-secret-management-and-ingress-controller.md)
+:arrow_forward: [AKS Ingress コントローラーの Azure Key Vault インテグレーションを構成する](./09-secret-management-and-ingress-controller.md)

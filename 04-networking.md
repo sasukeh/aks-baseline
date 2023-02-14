@@ -1,21 +1,23 @@
-# Deploy the hub-spoke network topology
+# ハブ-スポーク ネットワークトポロジーの展開
 
-The prerequisites for the [AKS baseline cluster](./) are now completed with [Azure AD group and user work](./03-aad.md) performed in the prior steps. Now we will start with our first Azure resource deployment, the network resources.
 
-## Subscription and resource group topology
+[AKS ベースライン クラスター](./) の前提条件は、前のステップで[ Azure AD グループとユーザーの作業](./03-aad.md)が完了したので、これで最初の Azure リソース展開、ネットワーク リソースに入ります。
 
-This reference implementation is split across several resource groups in a single subscription. This is to replicate the fact that many organizations will split certain responsibilities into specialized subscriptions (e.g. regional hubs/vwan in a _Connectivity_ subscription and workloads in landing zone subscriptions). We expect you to explore this reference implementation within a single subscription, but when you implement this cluster at your organization, you will need to take what you've learned here and apply it to your expected subscription and resource group topology (such as those [offered by the Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/decision-guides/subscriptions/).) This single subscription, multiple resource group model is for simplicity of demonstration purposes only.
 
-## Expected results
+## サブスクリプションとリソース グループのトポロジー
 
-### Resource groups
+このリファレンス実装は、単一のサブスクリプション内の複数のリソース グループに分割されています。これは、多くの組織が特定の責任を専門化したサブスクリプション (例: リージョン ハブ/ vwan は _Connectivity_ サブスクリプション、ワークロードはランディング ゾーン サブスクリプション) に分割することを反映するためです。このリファレンス実装を単一のサブスクリプション内で探索することを期待していますが、組織でこのクラスターを実装するときは、ここで学んだことを適用して、期待するサブスクリプションとリソース グループのトポロジー (例: [Cloud Adoption Framework によって提供されるもの](https://learn.microsoft.com/azure/cloud-adoption-framework/decision-guides/subscriptions/) ) に従う必要があります。単一のサブスクリプション、複数のリソース グループモデルは、デモンストレーションのための単純化のためにのみ使用されます。
 
-The following two resource groups will be created and populated with networking resources in the steps below.
+## 期待される結果
 
-| Name                            | Purpose                                   |
+### リソース グループ
+
+次の 2 つのリソース グループが、以下のステップでネットワーク リソースで作成され、埋められます。
+
+| 名前                            | 目的                                   |
 |---------------------------------|-------------------------------------------|
-| rg-enterprise-networking-hubs   | Contains all of your organization's regional hubs. A regional hubs include an egress firewall and Log Analytics for network logging. |
-| rg-enterprise-networking-spokes | Contains all of your organization's regional spokes and related networking resources. All spokes will peer with their regional hub and subnets will egress through the regional firewall in the hub. |
+| rg-enterprise-networking-hubs   | すべての組織のリージョン ハブを含みます。リージョン ハブには、出口ファイアウォールとネットワーク ログ記録のための Log Analytics が含まれます。 |
+| rg-enterprise-networking-spokes | すべての組織のリージョン スポークと関連するネットワーク リソースを含みます。すべてのスポークは、リージョン ハブに接続し、サブネットはハブのリージョン ファイアウォールを通じて外部接続します。 |
 
 ### Resources
 
@@ -25,85 +27,96 @@ The following two resource groups will be created and populated with networking 
 * Force tunnel UDR for cluster subnets to the hub
 * Network Security Groups for all subnets that support them
 
+### リソース
+
+* ハブ仮想ネットワークのリージョン ファイアウォール
+* クラスターのネットワーク スポーク
+* ハブからスポークへのネットワーク ピアリング
+* クラスター サブネットの強制トンネル UDR にハブを使用
+* サポートするすべてのサブネットのネットワーク セキュリティ グループ
+
 ## Steps
 
-1. Login into the Azure subscription that you'll be deploying into.
+## ステップ
 
-   > :book: The networking team logins into the Azure subscription that will contain the regional hub. At Contoso Bicycle, all of their regional hubs are in the same, centrally-managed subscription.
+1. デプロイする Azure サブスクリプションにログインします。
+
+   > :book: ネットワーク チームは、リージョン ハブを含む Azure サブスクリプションにログインします。Contoso Bicycle では、すべてのリージョン ハブは、同じ中央で管理されるサブスクリプションにあります。
 
    ```bash
    az login -t $TENANTID_AZURERBAC_AKS_BASELINE
    ```
 
-1. Create the networking hubs resource group.
+2. ネットワーク ハブのリソース グループを作成します。
 
-   > :book: The networking team has all their regional networking hubs in the following resource group. The group's default location does not matter, as it's not tied to the resource locations. (This resource group would have already existed.)
+   > :book: ネットワーク チームは、次のリソース グループにすべてのリージョン ハブを配置しています。グループのデフォルトの場所は、リソースの場所に関連付けられていないため、関係ありません。 (このリソース グループはすでに存在しているはずです。)
 
    ```bash
    # [This takes less than one minute to run.]
    az group create -n rg-enterprise-networking-hubs -l centralus
    ```
 
-1. Create the networking spokes resource group.
+3. ネットワークスポークリソースグループを作成します。
 
-   > :book: The networking team also keeps all of their spokes in a centrally-managed resource group. As with the hubs resource group, the location of this group does not matter and will not factor into where our network will live. (This resource group would have already existed or would have been part of an Azure landing zone that contains the cluster.)
+   > :book: ネットワーク チームは、すべてのスポークを中央で管理されるリソース グループにも保持します。ハブのリソース グループと同様に、このグループの場所は関係ありません。 (このリソース グループはすでに存在しているはずです。)
 
    ```bash
    # [This takes less than one minute to run.]
    az group create -n rg-enterprise-networking-spokes -l centralus
    ```
 
-1. Create the regional network hub.
+4. リージョン ハブを作成します
 
-   > :book: When the networking team created the regional hub for eastus2, it didn't have any spokes yet defined, yet the networking team always lays out a base hub following a standard pattern (defined in `hub-default.bicep`). A hub always contains an Azure Firewall (with some org-wide policies), Azure Bastion, a gateway subnet for VPN connectivity, and Azure Monitor for network observability. They follow Microsoft's recommended sizing for the subnets.
-   >
-   > The networking team has decided that `10.200.[0-9].0` will be where all regional hubs are homed on their organization's network space. The `eastus2` hub (created below) will be `10.200.0.0/24`.
-   >
-   > Note: The subnets for Azure Bastion and on-prem connectivity are deployed in this reference architecture, but the resources are not deployed. Since this reference implementation is expected to be deployed isolated from existing infrastructure; these IP addresses should not conflict with any existing networking you have, even if those IP addresses overlap. If you need to connect the reference implementation to existing networks, you will need to adjust the IP space as per your requirements as to not conflict in the reference ARM templates.
+  > :book: ネットワーク チームは、eastus2 のリージョン ハブを作成したとき、まだ定義されているスポークはありませんでしたが、ネットワーク チームは、常に標準のパターン ( `hub-default.bicep` で定義されています) に従ってベース ハブを配置します。ハブには、Azure Firewall (いくつかの組織全体のポリシー)、Azure Bastion、VPN 接続のためのゲートウェイ サブネット、およびネットワークの観測性のための Azure Monitor が含まれます。Microsoft が推奨するサブネットのサイジングに従います。
+  >
+  > ネットワーク チームは、 `10.200.[0-9].0` が組織のネットワーク スペースですべてのリージョン ハブが配置される場所になることを決めました。以下で作成される `eastus2` ハブは `
+  >
+  > 注: Azure Bastion とオンプレミス接続のためのサブネットは、このリファレンス アーキテクチャでデプロイされますが、リソースはデプロイされません。このリファレンス実装は、既存のインフラストラクチャと分離されてデプロイされることを想定しているため、これらの IP アドレスは、既存のネットワークと競合しないはずです。これらの IP アドレスが重複している場合でも。既存のネットワークに接続する必要がある場合は、リファレンス ARM テンプレートに従って、要件に応じて IP スペースを調整する必要があります。
 
    ```bash
-   # [This takes about six minutes to run.]
+   # [６分ほどかかります]
    az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-default.bicep -p location=eastus2
    ```
 
-   The hub creation will emit the following:
+   ハブ作成は、次のものを出力します。
 
-      * `hubVnetId` - which you'll will query in future steps when creating connected regional spokes. E.g. `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-hubs/providers/Microsoft.Network/virtualNetworks/vnet-eastus2-hub`
+   * `hubVnetId` - これは、接続されたリージョン スポークを作成するときに、将来のステップで照会するものです。例: `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-hubs/providers/Microsoft.Network/virtualNetworks/vnet-eastus2-hub`
 
-1. Create the spoke that will be home to the AKS cluster and its adjacent resources.
+1. AKS クラスターとその隣接リソースを配置するネットワーク スポークを作成します。
 
-   > :book: The networking team receives a request from an app team in business unit (BU) 0001 for a network spoke to house their new AKS-based application (Internally know as Application ID: A0008). The network team talks with the app team to understand their requirements and aligns those needs with Microsoft's best practices for a general-purpose AKS cluster deployment. They capture those specific requirements and deploy the spoke, aligning to those specs, and connecting it to the matching regional hub.
+   > :book: ネットワーク チームは、ビジネス ユニット (BU) 0001 のアプリ チームから、AKS ベースの新しいアプリケーション (内部的には Application ID: A0008 として知られています) を配置するためのネットワーク スポークのリクエストを受けます。ネットワーク チームは、アプリ チームと話し合い、要件を理解し、一般的な AKS クラスターのデプロイメントの Microsoft のベスト プラクティスに合わせます。これらの特定の要件をキャプチャし、それらの仕様に合わせてスポークをデプロイし、マッチングするリージョン ハブに接続します。
 
    ```bash
    RESOURCEID_VNET_HUB=$(az deployment group show -g rg-enterprise-networking-hubs -n hub-default --query properties.outputs.hubVnetId.value -o tsv)
    echo RESOURCEID_VNET_HUB: $RESOURCEID_VNET_HUB
 
-   # [This takes about four minutes to run.]
+   # [これは約4分かかります。]
    az deployment group create -g rg-enterprise-networking-spokes -f networking/spoke-BU0001A0008.bicep -p location=eastus2 hubVnetResourceId="${RESOURCEID_VNET_HUB}"
    ```
 
-   The spoke creation will emit the following:
+   スポーク作成は、次のものを出力します。
 
-     * `appGwPublicIpAddress` - The Public IP address of the Azure Application Gateway (WAF) that will receive traffic for your workload.
-     * `clusterVnetResourceId` - The resource ID of the Virtual network where the cluster, App Gateway, and related resources will be deployed. E.g. `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-spokes/providers/Microsoft.Network/virtualNetworks/vnet-spoke-BU0001A0008-00`
-     * `nodepoolSubnetResourceIds` - An array containing the subnet resource IDs of the AKS node pools in the spoke. E.g. `[ "/subscriptions/[id]/resourceGroups/rg-enterprise-networking-spokes/providers/Microsoft.Network/virtualNetworks/vnet-hub-spoke-BU0001A0008-00/subnets/snet-clusternodes" ]`
+   * `appGwPublicIpAddress` - ワークロードのトラフィックを受信する Azure Application Gateway (WAF) のパブリック IP アドレス。
+   * `clusterVnetResourceId` - クラスター、App Gateway、および関連リソースがデプロイされる仮想ネットワークのリソース ID。例: `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-spokes/providers/Microsoft.Network/virtualNetworks/vnet-spoke-BU0001A0008-00`
+   * `nodepoolSubnetResourceIds` - スポーク内の AKS ノード プールのサブネット リソース ID を含む配列。例: `[ "/subscriptions/[id]/resourceGroups/rg-enterprise-networking-spokes/providers/Microsoft.Network/virtualNetworks/vnet-hub-spoke-BU0001A0008-00/subnets/snet-clusternodes" ]`
 
-1. Update the shared, regional hub deployment to account for the requirements of the spoke.
+2. スポークの要件を考慮して、共有されたリージョン ハブのデプロイメントを更新します。
 
-   > :book: Now that their regional hub has its first spoke, the hub can no longer run off of the generic hub template. The networking team creates a named hub template (e.g. `hub-eastus2.bicep`) to forever represent this specific hub and the features this specific hub needs in order to support its spokes' requirements. As new spokes are attached and new requirements arise for the regional hub, they will be added to this template file.
+   > :book: リージョン ハブに最初のスポークがあるため、ハブはもはや一般的なハブ テンプレートから実行できなくなります。ネットワーク チームは、この特定のハブとこの特定のハブが必要とする機能を永久に表す名前付きのハブ テンプレート (例: `hub-eastus2.bicep`) を作成します。新しいスポークがアタッチされ、リージョン ハブの新しい要件が発生すると、このテンプレート ファイルに追加されます。
 
    ```bash
    RESOURCEID_SUBNET_NODEPOOLS=$(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.nodepoolSubnetResourceIds.value -o json)
    echo RESOURCEID_SUBNET_NODEPOOLS: $RESOURCEID_SUBNET_NODEPOOLS
 
-   # [This takes about ten minutes to run.]
+   # [これは約10分かかります。]
    az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-regionA.bicep -p location=eastus2 nodepoolSubnetResourceIds="${RESOURCEID_SUBNET_NODEPOOLS}"
    ```
 
-   > :book: At this point the networking team has delivered a spoke in which BU 0001's app team can lay down their AKS cluster (ID: A0008). The networking team provides the necessary information to the app team for them to reference in their infrastructure-as-code artifacts.
+   > :book: この時点で、ネットワーク チームは、BU 0001 のアプリ チームが AKS クラスター (ID: A0008) を配置できるスポークを提供しました。ネットワーク チームは、アプリ チームに、インフラストラクチャーのコード アーティファクトで参照するために必要な情報を提供します。
    >
-   > Hubs and spokes are controlled by the networking team's GitHub Actions workflows. This automation is not included in this reference implementation as this body of work is focused on the AKS baseline and not the networking team's CI/CD practices.
+   > ハブとスポークは、ネットワークチームの GitHub Actions ワークフローによって制御されます。この自動化は、この参考実装では AKS ベースラインに焦点を当てているため、ネットワーク チームの CI/CD プラクティスには含まれていません。
 
-### Next step
 
-:arrow_forward: [Prep for cluster bootstrapping](./05-bootstrap-prep.md)
+### 次のステップ
+
+:arrow_forward: [クラスターのブートストラッピングの準備](./05-bootstrap-prep.md)

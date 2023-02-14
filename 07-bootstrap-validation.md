@@ -1,78 +1,78 @@
-# Validate your cluster is bootstrapped and enrolled in GitOps
+# クラスターがブートストラップされ、GitOps に登録されていることを確認する
 
-Now that [the AKS cluster](./06-aks-cluster.md) has been deployed, the next step to validate that your cluster has been placed under a GitOps management solution, Flux in this case.
+[AKSクラスター](./06-aks-cluster.md)がデプロイされたので、次に、クラスターがGitOps管理ソリューション、Fluxの場合、に登録されていることを確認します。
 
-## Steps
+## 手順
 
-GitOps allows a team to author Kubernetes manifest files, persist them in their git repo, and have them automatically apply to their cluster as changes occur. This reference implementation is focused on the baseline cluster, so Flux is managing cluster-level concerns. This is distinct from workload-level concerns, which would be possible as well to manage via Flux, and would typically be done by additional Flux configuration in the cluster. The namespace `cluster-baseline-settings` will be used to provide a logical division of the cluster bootstrap configuration from workload configuration. Examples of manifests that are applied:
+GitOps は、チームが Kubernetes マニフェストファイルを作成し、git リポジトリに永続化し、変更が発生すると自動的にクラスターに適用できるようにすることを可能にします。このリファレンス実装では、クラスターベースラインに焦点を当てているため、Flux はクラスターのレベルの問題を管理しています。これは、Flux を介してワークロードレベルの問題を管理することとは異なり、通常はクラスター内の追加の Flux 構成によって行われます。ネームスペース `cluster-baseline-settings` は、クラスターブートストラップ構成をワークロード構成から論理的に分離するために使用されます。適用されるマニフェストの例:
 
-* Cluster Role Bindings for the AKS-managed Azure AD integration
-* Cluster-wide configuration of Azure Monitor for Containers
-* the workload's namespace named `a0008`
+* AKS で管理されている Azure AD インテグレーションのためのクラスター ロール バインディング
+* Azure Monitor for Containers のクラスター全体の構成
+* ワークロードのネームスペース `a0008`
 
-1. Install `kubectl` 1.24 or newer. (`kubectl` supports ±1 Kubernetes version.)
+1. `kubectl` 1.24 かそれ以上をインストールします。(`kubectl` は±1つのKubernetesバージョンをサポートします。)
 
    ```bash
    sudo az aks install-cli
    kubectl version --client
    ```
 
-   > Starting with `kubectl` 1.24, you must also have the `kubelogin` credential (exec) plugin available for Azure AD authentication. Installing `kubectl` via `az aks install-cli` does this already, but if you install `kubectl` in a different way, please make sure `kubelogin` is [installed](https://github.com/Azure/kubelogin#getting-started).
+   > `kubectl` 1.24 からは、Azure AD 認証のための `kubelogin` 資格情報（exec）プラグインが必要になります。`az aks install-cli` を介して `kubectl` をインストールすると、これがすでに行われますが、異なる方法で `kubectl` をインストールする場合は、`kubelogin` が[インストール](https://github.com/Azure/kubelogin#getting-started)されていることを確認してください。
 
-1. Get the cluster name.
+2. クラスター名を取得します。
 
    ```bash
    AKS_CLUSTER_NAME=$(az aks list -g rg-bu0001a0008 --query '[0].name' -o tsv)
    echo AKS_CLUSTER_NAME: $AKS_CLUSTER_NAME
    ```
 
-1. Get AKS `kubectl` credentials.
+3. AKS の `kubectl` 資格情報を取得します。
 
-   > In the [Azure Active Directory Integration](03-aad.md) step, we placed our cluster under AAD group-backed RBAC. This is the first time we are seeing this used. `az aks get-credentials` sets your `kubectl` context so that you can issue commands against your cluster. Even when you have enabled Azure AD integration with your AKS cluster, an Azure user has sufficient permissions on the cluster resource can still access your AKS cluster by using the `--admin` switch to this command. Using this switch _bypasses_ Azure AD and uses client certificate authentication instead; that isn't what we want to happen. So in order to prevent that practice, local account access (e.g. `clusterAdmin` or `clusterMonitoringUser`) is expressly disabled.
+   > [Azure Active Directory 統合](03-aad.md)ステップで、クラスターを AAD グループによる RBAC で管理するように設定しました。これは初めて使用しているものです。`az aks get-credentials` は、クラスターに対してコマンドを発行できるように `kubectl` コンテキストを設定します。Azure AD と AKS クラスターを統合するときに Azure AD を有効にした場合でも、Azure ユーザーはクラスター リソースに十分な権限を持っているため、このコマンドに `--admin` スイッチを使用して AKS クラスターにアクセスできます。このスイッチは Azure AD をバイパスし、代わりにクライアント証明書認証を使用します。これは私たちが行いたくないことです。そのため、このプラクティスを防ぐために、ローカル アカウント アクセス（例：`clusterAdmin` または `clusterMonitoringUser`）は明示的に無効になっています。
    >
-   > In a following step, you'll log in with a user that has been added to the Azure AD security group used to back the Kubernetes RBAC admin role. Executing the first `kubectl` command below will invoke the AAD login process to authorize the _user of your choice_, which will then be authenticated against Kubernetes RBAC to perform the action. The user you choose to log in with _must be a member of the AAD group bound_ to the `cluster-admin` ClusterRole. For simplicity you could either use the "break-glass" admin user created in [Azure Active Directory Integration](03-aad.md) (`bu0001a0008-admin`) or any user you assigned to the `cluster-admin` group assignment in your [`cluster-rbac.yaml`](cluster-manifests/cluster-rbac.yaml) file.
+   > 次のステップでは、Kubernetes RBAC の管理者ロールをバックする Azure AD セキュリティ グループに追加されたユーザーでログインします。最初の `kubectl` コマンドを実行すると、AAD ログイン プロセスが起動し、選択した _ユーザー_ を認証します。そのユーザーは、Kubernetes RBAC を使用してアクションを実行します。ログインに使用するユーザーは、`cluster-admin` ClusterRole にバインドされた AAD グループのメンバーである必要があります。簡単にするために、[Azure Active Directory 統合](03-aad.md)で作成した "break-glass" 管理者ユーザー（`bu0001a0008-admin`）または [`cluster-rbac.yaml`](cluster-manifests/cluster-rbac.yaml) ファイルで `cluster-admin` グループ割り当てに割り当てたユーザーを使用できます。
 
    ```bash
    az aks get-credentials -g rg-bu0001a0008 -n $AKS_CLUSTER_NAME
    ```
 
-   :warning: At this point two important steps are happening:
+   :warning: この時点で、2つの重要なステップが行われています。
 
-      * The `az aks get-credentials` command will be fetch a `kubeconfig` containing references to the AKS cluster you have created earlier.
-      * To _actually_ use the cluster you will need to authenticate. For that, run any `kubectl` commands which at this stage will prompt you to authenticate against Azure Active Directory. For example, run the following command:
+      * `az aks get-credentials` コマンドは、前に作成した AKS クラスターへの参照を含む `kubeconfig` を取得します。
+      * 実際にクラスターを使用するには、認証する必要があります。そのためには、`kubectl` コマンドを実行します。この段階では、Azure Active Directory に対して認証するように求められます。たとえば、次のコマンドを実行します。
 
    ```bash
    kubectl get nodes
    ```
 
-   Once the authentication happens successfully, some new items will be added to your `kubeconfig` file such as an `access-token` with an expiration period. For more information on how this process works in Kubernetes please refer to [the related documentation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens).
+   認証が成功すると、`kubeconfig` ファイルに `access-token` などの新しい項目が追加されます。このプロセスの詳細については、[関連するドキュメント](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens)を参照してください。
 
-1. Validate your cluster is bootstrapped.
+4. クラスターのブートストラップが正しく行われていることを確認します。
 
-   The bootstrapping process that already happened due to the usage of the Flux extension for AKS has set up the following, amoung other things
+   Flux エクステンションを使用した Flux のブートストラッププロセスによって、次のようなものが設定されています。
 
-   * the workload's namespace named `a0008`
-   * installed kured
+   * ワークロードの名前空間 `a0008`
+   * kured のインストール
 
    ```bash
    kubectl get namespaces
    kubectl get all -n cluster-baseline-settings
    ```
 
-   These commands will show you results that were due to the automatic bootstrapping process your cluster experienced due to the Flux GitOps extension. This content mirrors the content found in [`cluster-manifests`](./cluster-manifests), and commits made there will reflect in your cluster within minutes of making the change.
+   これらのコマンドは、Flux GitOps エクステンションによってクラスターに自動的に実行されたブートストラッププロセスの結果を示します。このコンテンツは [`cluster-manifests`](./cluster-manifests) と同じ内容であり、そこにコミットを行うと、変更を行った数分以内にクラスターに反映されます。
 
-The end result of all of this is that `kubectl` was not required for any part of the bootstrapping process of a cluster. The usage of `kubectl`-based access should be reserved for emergency break-fix situations and not for day-to-day configuration operations on this cluster. Between templates for Azure Resource definitions, and the bootstrapping of manifests via the GitOps extension, all normal configuration activities can be performed without the need to use `kubectl`. You will however see us use it for the upcoming workload deployment. This is because the SDLC component of workloads are not in scope for this reference implementation, as this is focused the infrastructure and baseline configuration.
+これのすべての最終結果は、クラスターのブートストラッププロセスのいずれの部分においても `kubectl` が必要とされなかったことです。`kubectl` ベースのアクセスの使用は、緊急のブレークフィックスの状況にのみ予約され、このクラスターの日常的な構成操作には使用されるべきではありません。Azure リソース定義のテンプレートと、GitOps エクステンションを介したマニフェストのブートストラップの間で、すべての通常の構成活動を行うには、`kubectl` の使用が必要ありません。ただし、今後のワークロードのデプロイメントには、SDLC コンポーネントがワークロードのスコープに含まれていないため、これはインフラストラクチャとベースライン構成に焦点を当てています。
 
-## Alternatives
+## その他
 
-Using the AKS extension for Flux gives you a seemless bootstrapping process that applies immediately after the cluster resource is created in Azure. It also supports the inclusion of that bootstrapping as resource templates to align with your IaC strategy. Alterantively you could apply bootstrapping as a secondary step after the cluster is deployed and manage that process external to the lifecycle of the cluster. Doing so will open your cluster up to a prolonged window between the cluster being deployed and your bootstrapping being applied.
+Flux の AKS 拡張を使うことで、Azure でクラスターリソースが作成された直後にすぐに適用されるシームレスなブートストラッププロセスを提供します。また、そのブートストラップをリソーステンプレートとして含めることもでき、これにより IaC 戦略と一致させることができます。代わりに、クラスターがデプロイされた後にブートストラップを適用し、そのプロセスをクラスターのライフサイクル外で管理することもできます。これにより、クラスターがデプロイされてからブートストラップが適用されるまでの長期間のウィンドウが開かれます。
 
-Furthermore, Flux doesn't need to be installed as an extension and instead the GitOps operator of your choice (such as ArgoCD) could be installed as part of your external bootstrapping process.
+さらに、Flux は拡張としてインストールする必要はなく、代わりに選択した GitOps オペレーター（ArgoCD など）を外部ブートストラッププロセスの一部としてインストールすることができます。
 
-## Recommendations
+## 推奨事項
 
-It is recommended to have a clearly defined bootstrapping process that occurs as close as practiable to the actual cluster deployment for immediate enrollment of your cluster into your internal processes and tooling. GitOps lends itself well to this desired outcome, and you're encouraged to explore its usage for your cluster bootstrapping process and optionally also workload-level concerns. GitOps is often positioned best for fleet (many clusters) management for uniformity and its simplicity at scale; a more manual (via deployment pipelines) bootstrapping is common on small instance-count AKS deployments. Either process can work with either cluster topologies. Use a bootstrapping process that aligns with your desired objectives and constraints found within your organization and team.
+クラスターを内部プロセスとツールにすぐに登録するために、実際のクラスターのデプロイメントにできるだけ近い場所で発生する明確に定義されたブートストラッププロセスを持つことをお勧めします。GitOps は、この目的の達成に適しており、クラスターのブートストラッププロセスと、オプションでワークロードレベルの問題に対して、GitOps の使用を探索することをお勧めします。GitOps は、一貫性とスケールの簡単さのために、多くのクラスター（多くのクラスター）の管理に最適な位置づけがされています。小規模なインスタンス数の AKS デプロイメントでは、より手動（デプロイメントパイプラインを介して）のブートストラップが一般的です。どちらのプロセスも、どちらのクラスター拡張も機能します。組織とチーム内で望ましい目標と制約に合わせたブートストラッププロセスを使用します。
 
-### Next step
+### 次のステップ
 
-:arrow_forward: [Prepare for the workload by installing its prerequisites](./08-workload-prerequisites.md)
+:arrow_forward: [ワークロードの準備を行い、必要なものをインストールします](./08-workload-prerequisites.md)

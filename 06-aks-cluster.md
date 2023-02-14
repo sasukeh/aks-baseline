@@ -1,12 +1,12 @@
-# Deploy the AKS cluster
+# AKS クラスターをデプロイする
 
-Now that your [ACR instance is deployed and ready to support cluster bootstrapping](./05-bootstrap-prep.md), the next step in the [AKS baseline reference implementation](./) is deploying the AKS cluster and its remaining adjacent Azure resources.
+[ACR インスタンスはデプロイされ、クラスターのブートストラップに対応していることを確認しました](./05-bootstrap-prep.md)。次のステップは、[AKS ベースライン リファレンス実装](./)の次のステップで、AKS クラスターとその他の Azure リソースをデプロイすることです。
 
-## Steps
+## 手順
 
-1. Indicate your bootstrapping repo.
+1. ブートストラップのリポジトリを特定します
 
-   > If you cloned this repo, then the value will be the original mspnp GitHub organization's repo, which will mean that your cluster will be bootstraped using public container images. If instead you forked this repo, then the GitOps repo will be your own repo, and your cluster will be bootstrapped using container images references based on the values in your repo's manifest files. On the prior instruction page you had the opportunity to update those manifests to use your ACR instance. For guidance on using a private bootstrapping repo, see [Private bootstrapping repository](./cluster-manifests/README.md#private-bootstrapping-repository).
+   > このリポジトリをクローンした場合、値は元の mspnp GitHub 組織のリポジトリになります。これは、クラスターがパブリック コンテナー イメージを使用してブートストラップされることを意味します。代わりにこのリポジトリをフォークした場合、GitOps リポジトリはあなた自身のリポジトリになり、クラスターがコンテナー イメージ参照を使用してブートストラップされます。前の手順ページでは、そのマニフェストを使用して ACR インスタンスを使用するように更新する機会がありました。プライベート ブートストラップ リポジトリの使用についてのガイダンスについては、[プライベート ブートストラップ リポジトリ](./cluster-manifests/README.md#private-bootstrapping-repository)を参照してください。
 
    ```bash
    GITOPS_REPOURL=$(git config --get remote.origin.url)
@@ -16,26 +16,28 @@ Now that your [ACR instance is deployed and ready to support cluster bootstrappi
    echo GITOPS_CURRENT_BRANCH_NAME: $GITOPS_CURRENT_BRANCH_NAME
    ```
 
-1. Deploy the cluster ARM template.
-  :exclamation: By default, this deployment will allow unrestricted access to your cluster's API Server. You can limit access to the API Server to a set of well-known IP addresses (i.,e. a jump box subnet (connected to by Azure Bastion), build agents, or any other networks you'll administer the cluster from) by setting the `clusterAuthorizedIPRanges` parameter in all deployment options. This setting will also impact traffic originating from within the cluster trying to use the API server, so you will also need to include _all_ of the public IPs used by your egress Azure Firewall. For more information, see [Secure access to the API server using authorized IP address ranges](https://learn.microsoft.com/azure/aks/api-server-authorized-ip-ranges#create-an-aks-cluster-with-api-server-authorized-ip-ranges-enabled).
+2. クラスター ARM テンプレートをデプロイします
+
+   :exclamation: デフォルトでは、このデプロイメントでは、クラスターの API サーバーへの制限なしのアクセスが許可されます。すべてのデプロイメント オプションで `clusterAuthorizedIPRanges` パラメーターを設定することで、API サーバーへのアクセスを一連の既知の IP アドレス (つまり、ジャンプ ボックス サブネット (Azure Bastion に接続)、ビルド エージェント、またはクラスターを管理するネットワークのいずれか) に制限できます。この設定は、API サーバーを使用しようとしてクラスター内から発生するトラフィックにも影響を与えるため、出口 Azure Firewall で使用されるすべてのパブリック IP を含める必要があります。詳細については、[API サーバーへのアクセスを認証された IP アドレス範囲を使用して安全にする](https://docs.microsoft.com/azure/aks/api-server-authorized-ip-ranges#create-an-aks-cluster-with-api-server-authorized-ip-ranges-enabled)を参照してください。
 
    ```bash
-   # [This takes about 18 minutes.]
-   az deployment group create -g rg-bu0001a0008 -f cluster-stamp.bicep -p targetVnetResourceId=${RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE} clusterAdminAadGroupObjectId=${AADOBJECTID_GROUP_CLUSTERADMIN_AKS_BASELINE} a0008NamespaceReaderAadGroupObjectId=${AADOBJECTID_GROUP_A0008_READER_AKS_BASELINE} k8sControlPlaneAuthorizationTenantId=${TENANTID_K8SRBAC_AKS_BASELINE} appGatewayListenerCertificate=${APP_GATEWAY_LISTENER_CERTIFICATE_AKS_BASELINE} aksIngressControllerCertificate=${AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_BASELINE} domainName=${DOMAIN_NAME_AKS_BASELINE} gitOpsBootstrappingRepoHttpsUrl=${GITOPS_REPOURL} gitOpsBootstrappingRepoBranch=${GITOPS_CURRENT_BRANCH_NAME} location=eastus2
+   # [1o 分ほどかかります]
+   az deployment group create -g rg-bu0001a0008 -f cluster-stamp.bicep -p targetVnetResourceId=${RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE} clusterAdminAadGroupObjectId=${AADOBJECTID_GROUP_CLUSTERADMIN_AKS_BASELINE} a0008NamespaceReaderAadGroupObjectId=${AADOBJECTID_GROUP_A0008_READER_AKS_BASELINE} k8sControlPlaneAuthorizationTenantId=${TENANTID_K8SRBAC_AKS_BASELINE} appGatewayListenerCertificate=${APP_GATEWAY_LISTENER_CERTIFICATE_AKS_BASELINE} aksIngressControllerCertificate=${AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_BASELINE} domainName=${DOMAIN_NAME_AKS_BASELINE} gitOpsBootstrappingRepoHttpsUrl=${GITOPS_REPOURL} gitOpsBootstrappingRepoBranch=${GITOPS_CURRENT_BRANCH_NAME} location=japaneast
    ```
 
-   > Alteratively, you could have updated the [`azuredeploy.parameters.prod.json`](./azuredeploy.parameters.prod.json) file and deployed as above, using `-p "@azuredeploy.parameters.prod.json"` instead of providing the individual key-value pairs.
+   > 代わりに、[`azuredeploy.parameters.prod.json`](./azuredeploy.parameters.prod.json) ファイルを更新し、上記の方法で `-p "@azuredeploy.parameters.prod.json"` を使用してデプロイできます。
 
-## Container registry note
+## コンテナー レジストリの注意点
 
-:warning: To aid in ease of deployment of this cluster and your experimentation with workloads, Azure Policy and Azure Firewall are currently configured to allow your cluster to pull images from _public container registries_ such as Docker Hub. For a production system, you'll want to update Azure Policy parameter named `allowedContainerImagesRegex` in your `cluster-stamp.bicep` file to only list those container registries that you are willing to take a dependency on and what namespaces those policies apply to, and make Azure Firewall allowances for the same. This will protect your cluster from unapproved registries being used, which may prevent issues while trying to pull images from a registry which doesn't provide SLA guarantees for your deployment.
+:warning: このクラスターのデプロイとワークロードの実験を容易にするために、Azure Policy と Azure Firewall は現在、Docker Hub などの _パブリック コンテナー レジストリ_ からイメージをプルできるように、クラスターに設定されています。本番システムでは、`cluster-stamp.bicep` ファイルの Azure Policy パラメーターである `allowedContainerImagesRegex` を、使用するコンテナー レジストリのみをリストにして、そのポリシーが適用される名前空間を指定し、Azure Firewall にも同じものを許可するように更新する必要があります。これにより、未承認のレジストリが使用されてイメージをプルしようとした場合に、SLA 保証がないレジストリからイメージをプルしようとして問題が発生するのを防ぐことができます。
 
-This deployment creates an SLA-backed Azure Container Registry for your cluster's needs. Your organization may have a central container registry for you to use, or your registry may be tied specifically to your application's infrastructure (as demonstrated in this implementation). **Only use container registries that satisfy the security and availability needs of your application.**
+このデプロイでは、クラスターのニーズに応じて SLA 対応の Azure コンテナー レジストリが作成されます。組織では、使用するための中央コンテナー レジストリがある場合があります。また、アプリケーション固有のインフラストラクチャに結びついているレジストリがある場合もあります (この実装で示されています)。**アプリケーションのセキュリティと可用性のニーズを満たすコンテナー レジストリのみを使用してください。**
 
-## Application Gateway placement
+## アプリケーション ゲートウェイの配置
 
-Azure Application Gateway, for this reference implementation, is placed in the same virtual network as the cluster nodes (isolated by subnets and related NSGs). This facilitates direct network line-of-sight from Application Gateway to the cluster's private load balancer and still allows for strong network boundary control. More importantly, this aligns with cluster operator team owning the point of ingress. Some organizations may instead leverage a perimeter network in which Application Gateway is managed centrally which resides in an entirely separated virtual network. That topology is also fine, but you'll need to ensure there is secure and limited routing between that perimeter network and your internal private load balancer for your cluster. Also, there will be additional coordination necessary between the cluster/workload operators and the team owning the Application Gateway.
+Azure アプリケーション ゲートウェイは、このリファレンス実装では、クラスター ノードと同じ仮想ネットワークに配置されます (サブネットと関連する NSG によって分離されます)。これにより、アプリケーション ゲートウェイからクラスターのプライベート ロード バランサーに直接ネットワーク ライン オブ サイトが確立され、強力なネットワーク境界制御を維持できます。更に重要なのは、クラスターのポイント オブ イングレスを所有しているクラスター操作チームと一致していることです。一部の組織では、代わりに Application Gateway を中央で管理し、完全に分離された仮想ネットワークに存在するパーミア ネットワークを利用することもできます。このトポロジーも問題ありませんが、そのパーミア ネットワークとクラスターのプライベート ロード バランサーとの間に安全で制限されたルーティングがあることを確認する必要があります。また、クラスター/ワークロード操作チームと Application Gateway を所有するチームとの間に、追加の調整が必要になります。
 
-### Next step
+## 次のステップ
 
-:arrow_forward: [Validate your cluster is bootstrapped](./07-bootstrap-validation.md)
+:arrow_forward: [クラスターのブートストラップを検証する](./07-bootstrap-validation.md)
+

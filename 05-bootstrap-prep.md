@@ -1,35 +1,35 @@
-# Prep for cluster bootstrapping
+# クラスターのブートストラップの準備
 
-Now that the [hub-spoke network is provisioned](./04-networking.md), the next step in the [AKS baseline reference implementation](./) is preparing what your AKS cluster should be bootstrapped with.
+[ハブ・スポークネットワークがプロビジョニングされた](./04-networking.md)後、次のステップは、AKSベースラインリファレンス実装の[AKSベースラインリファレンス実装](./)で、AKSクラスターがブートストラップされるべきものを準備することです。
 
-## Expected results
+## 期待される結果
 
-Container registries often have a lifecycle that extends beyond the scope of a single cluster. They can be scoped broadly at organizational or business unit levels, or can be scoped at workload levels, but usually are not directly tied to the lifecycle of any specific cluster instance. For example, you may do blue/green _cluster instance_ deployments, both using the same container registry. Even though clusters came and went, the registry stays intact.
+コンテナレジストリは、単一のクラスターのライフサイクルを超えて延長されることがよくあります。組織レベルまたはビジネスユニットレベルで広くスコープされることができますが、通常は特定のクラスターインスタンスに直接関連付けられているわけではありません。たとえば、青/緑のクラスターインスタンスのデプロイを行い、同じコンテナレジストリを使用することができます。クラスターが消えてもレジストリはそのままです。
 
-* Azure Container Registry (ACR) is deployed, and exposed as a private endpoint.
-* ACR is populated with images your cluster will need as part of its bootstrapping process.
-* Log Analytics is deployed and ACR platform logging is configured. This workspace will be used by your cluster as well.
+* Azureコンテナレジストリ（ACR）がデプロイされ、プライベートエンドポイントとして公開されます。
+* クラスターのブートストラッププロセスに必要な画像がACRに配置されます。
+* Log Analyticsがデプロイされ、ACRプラットフォームのログが構成されます。このワークスペースは、クラスターでも使用されます。
 
-The role of this pre-existing ACR instance is made more prominant when we think about cluster bootstrapping. That is the process that happens after Azure resource deployment of the cluster, but before your first workload lands in the cluster. The cluster will be bootstrapped _immedately and automatically_ after resource deployment, which means you'll need ACR in place to act as your official OCI artifact repository for required images and Helm charts used in that bootstrapping process.
+事前に存在するACRインスタンスの役割は、クラスターのブートストラップを考えるとより顕著になります。これは、Azureリソースのデプロイ後に発生するプロセスで、最初のワークロードがクラスターに到着する前のプロセスです。クラスターはリソースのデプロイ後 _すぐに自動的に_ ブートストラップされます。つまり、ブートストラップに使用される必要がある画像とヘルムチャートを、公式のOCIアーティファクトリポジトリとしてACRを使用して提供する必要があるということです。
 
-### Method
+### 方法
 
-We'll be bootstrapping this cluster with the Flux GitOps agent as installed as an AKS extension. This specific choice does not imply that Flux, or GitOps in general, is the only approach to bootstrapping. Consider your organizational familiarity and acceptance of tooling like this and decide if cluster bootstrapping should be performed with GitOps or via your deployment pipelines. If you are running a fleet of clusters, a GitOps approach is highly recommended for uniformity and easier governance. When running only a few clusters, GitOps might be seen as "too much" and you might instead opt for integrating that process into one or more deployment pipelines to ensure bootstrapping takes place. No matter which way you go, you'll need your bootstrapping artifacts ready to go before you start your cluster deployment so that you can minimize the time between cluster deployment and bootstrapping. Using the Flux AKS extension allows your cluster to start already bootstrapped and sets you up with a solid management foundation going forward.
+Flux GitOpsエージェントをAKS拡張としてインストールすることで、このクラスターをブートストラップします。この特定の選択肢は、Flux、またはGitOps全般がブートストラップの唯一のアプローチであることを意味するものではありません。このようなツールの組織的な知識と受容度を考慮し、クラスターのブートストラップがGitOpsまたはデプロイメントパイプラインを介して実行されるべきかを決定します。クラスターのフリートを実行している場合は、一貫性と簡単なガバナンスのために、GitOpsアプローチが強く推奨されます。クラスターを数個しか実行していない場合は、GitOpsは「多すぎる」と見なされ、ブートストラッププロセスを1つ以上のデプロイメントパイプラインに統合して、ブートストラップが実行されるようにすることができます。どのような方法でも、クラスターのデプロイを開始する前にブートストラップアーティファクトを準備しておく必要があります。Flux AKS拡張を使用すると、クラスターがすでにブートストラップされて開始され、今後も堅牢な管理基盤を構築できます。
 
-## Steps
+## ステップ
 
-1. Create the AKS cluster resource group.
+1. AKS クラスターリソースグループを作成する
 
-   > :book: The app team working on behalf of business unit 0001 (BU001) is looking to create an AKS cluster of the app they are creating (Application ID: 0008). They have worked with the organization's networking team and have been provisioned a spoke network in which to lay their cluster and network-aware external resources into (such as Application Gateway). They took that information and added it to their [`acr-stamp.json`](./acr-stamp.json), [`cluster-stamp.json`](./cluster-stamp.json), and [`azuredeploy.parameters.prod.json`](./azuredeploy.parameters.prod.json) files.
+   > :book: アプリケーションID：0008のアプリを作成しているアプリチームは、ビジネスユニット0001（BU001）の代理でAKSクラスターを作成しようとしています。組織のネットワーキングチームと協力して、クラスターとネットワークに対応した外部リソース（たとえばApplication Gateway）をレイアウトするために、スポークネットワークが割り当てられました。彼らはその情報を取得し、[`acr-stamp.json`](./acr-stamp.json)、[`cluster-stamp.json`](./cluster-stamp.json)、および[`azuredeploy.parameters.prod.json`](./azuredeploy.parameters.prod.json)ファイルに追加しました。
    >
-   > They create this resource group to be the parent group for the application.
+   > これらのファイルを使用して、アプリケーションの親グループとしてこのリソースグループを作成します。
 
    ```bash
    # [This takes less than one minute.]
-   az group create --name rg-bu0001a0008 --location eastus2
+   az group create --name rg-bu0001a0008 --location japaneast
    ```
 
-1. Get the AKS cluster spoke virtual network resource ID.
+2. Get the AKS cluster spoke virtual network resource ID.
 
    > :book: The app team will be deploying to a spoke virtual network, that was already provisioned by the network team.
 
@@ -38,16 +38,25 @@ We'll be bootstrapping this cluster with the Flux GitOps agent as installed as a
    echo RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE: $RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE
    ```
 
-1. Deploy the container registry template.
+2. AKS クラスターのスポーク仮想ネットワークリソースIDを得る
+
+   > :book: アプリチームは、ネットワークチームによってすでにプロビジョニングされたスポーク仮想ネットワークにデプロイします。
+
+   ```bash
+   export RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE=$(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.clusterVnetResourceId.value -o tsv)
+   echo RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE: $RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE
+   ```
+
+3. コンテナレジストリテンプレートをデプロイする
 
    ```bash
    # [This takes about four minutes.]
-   az deployment group create -g rg-bu0001a0008 -f acr-stamp.bicep -p targetVnetResourceId=${RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE} location=eastus2
+   az deployment group create -g rg-bu0001a0008 -f acr-stamp.bicep -p targetVnetResourceId=${RESOURCEID_VNET_CLUSTERSPOKE_AKS_BASELINE} location=japaneast
    ```
 
-1. Import cluster management images to your container registry.
+4. コンテナレジストリにクラスター管理用のイメージをインポートする
 
-   > Public container registries are subject to faults such as outages or request throttling. Interruptions like these can be crippling for a system that needs to pull an image _right now_. To minimize the risks of using public registries, store all applicable container images in a registry that you control, such as the SLA-backed Azure Container Registry.
+   > 公開コンテナレジストリは、アウトアウトやリクエストのスロットリングなどの故障によって影響を受ける可能性があります。これらの中断は、今すぐイメージを取得する必要があるシステムにとって致命的なものになる可能性があります。公開レジストリを使用するリスクを最小限に抑えるために、Azure Container Registryのようなコントロールできるレジストリにすべての適用可能なコンテナイメージを格納します。
 
    ```bash
    # Get your ACR instance name
@@ -58,41 +67,38 @@ We'll be bootstrapping this cluster with the Flux GitOps agent as installed as a
    az acr import --source ghcr.io/kubereboot/kured:1.12.0 -n $ACR_NAME_AKS_BASELINE
    ```
 
-   > In this walkthrough, there is only one image that is included in the bootstrapping process. It's included as an reference for this process. Your choice to use Kubernetes Reboot Daemon (Kured) or any other images, including helm charts, as part of your bootstrapping is yours to make.
+   > このウォークスルーでは、ブートストラッププロセスに含まれるイメージは1つだけです。これはこのプロセスの参考として含まれています。Kubernetes Reboot Daemon（Kured）やその他のイメージ、およびハンドルチャートをブートストラップの一部として使用するかどうかは、あなた次第です。
 
-1. Update bootstrapping manifests to pull from your ACR instance. _Optional. Fork required._
+5. ACRインスタンスからプルするためにブートストラップマニフェストを更新する。_任意の操作。フォークが必要です。_
 
-   > Your cluster will immedately begin processing the manifests in [`cluster-manifests/`](./cluster-manifests/) due to the bootstrapping configuration that will be applied to it. So, before you deploy the cluster now would be the right time push the following changes to your fork so that it will use your files instead of the files found in the original mspnp repo which point to public container registries:
+   > クラスターは、適用されるブートストラップ構成により、すぐに[`cluster-manifests/`](./cluster-manifests/)内のマニフェストの処理を開始します。したがって、クラスターをデプロイする前に、次の変更をフォークにプッシュして、オリジナルのmspnpリポジトリのファイルではなく、公開コンテナレジストリを指すファイルを使用するようにしてください。
    >
-   > * update the one `image:` value in [`kured.yaml`](./cluster-manifests/cluster-baseline-settings/kured.yaml) to use your container registry instead of a public container registry. See the comment in the file for instructions (or you can simply run the command below.)
+   > * [`kured.yaml`](./cluster-manifests/cluster-baseline-settings/kured.yaml)の1つの`image:`値を、公開コンテナレジストリの代わりにコンテナレジストリを使用するように更新します。ファイル内のコメントに指示があります（または、次のコマンドを実行するだけです）。
 
-   :warning: Without updating these files and using your own fork, you will be deploying your cluster such that it takes dependencies on public container registries. This is generally okay for exploratory/testing, but not suitable for production. Before going to production, ensure _all_ image references you bring to your cluster are from _your_ container registry (link imported in the prior step) or another that you feel confident relying on.
+   :warning: これらのファイルを更新せずに、自分のフォークを使用しない場合、クラスターをデプロイすると、公開コンテナレジストリに依存するようになります。これは一般に探索/テストには問題ありませんが、本番環境には適していません。本番環境に移行する前に、クラスターに持ち込むすべてのイメージ参照が、_あなた自身の_コンテナレジストリ（前のステップでインポートしたリンク）またはあなたが信頼できるものから来ていることを確認してください。
 
-   ```bash
-   sed -i "s:ghcr.io:${ACR_NAME_AKS_BASELINE}.azurecr.io:" ./cluster-manifests/cluster-baseline-settings/kured.yaml
-   ```
-
-   Note, that if you are on macOS, you might need to use the following command instead:
    ```bash
    sed -i '' 's:ghcr.io:'"${ACR_NAME_AKS_BASELINE}"'.azurecr.io:g' ./cluster-manifests/cluster-baseline-settings/kured.yaml
    ```
-   Now commit changes to repository.
+
+   これで、リポジトリに変更をコミットします。
 
    ```bash
    git commit -a -m "Update image source to use my ACR instance instead of a public container registry."
    git push
    ```
+```
 
-### Save your work in-progress
+### 進捗を保存する
 
 ```bash
-# run the saveenv.sh script at any time to save environment variables created above to aks_baseline.env
+# saveenv.shスクリプトをいつでも実行して、上記で作成された環境変数を aks_baseline.env に保存します。
 ./saveenv.sh
 
-# if your terminal session gets reset, you can source the file to reload the environment variables
+# ターミナルセッションがリセットされた場合は、ファイルをソース化して環境変数を再読み込みできます。
 # source aks_baseline.env
 ```
 
-### Next step
+### ネクストステップ
 
-:arrow_forward: [Deploy the AKS cluster](./06-aks-cluster.md)
+:arrow_forward: [AKSクラスターをデプロイする](./06-aks-cluster.md)
