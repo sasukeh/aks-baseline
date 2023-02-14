@@ -24,10 +24,6 @@
    > * Azure AD [ユーザー管理者](https://docs.microsoft.com/ja-jp/azure/active-directory/users-groups-roles/directory-assign-admin-roles#user-administrator-permissions) は、"break glass" AKS 管理者 Active Directory セキュリティ グループとユーザーを作成するために _必要_ です。 代わりに、Azure AD 管理者に、これを作成するように指示することができます。
    >   * Azure サブスクリプションに関連付けられているテナントのユーザー管理者グループに属していない場合は、[新しいテナントを作成](https://docs.microsoft.com/ja-jp/azure/active-directory/fundamentals/active-directory-access-create-new-tenant#create-a-new-tenant-for-your-organization) して、この実装を評価するために使用してください。 クラスターの API RBAC をバックする Azure AD テナントは、Azure サブスクリプションに関連付けられているテナントと同じテナントである必要はありません。
 
-3. Latest [Azure CLI installed](https://learn.microsoft.com/cli/azure/install-azure-cli?view=azure-cli-latest) (must be at least 2.40), or you can perform this from Azure Cloud Shell by clicking below.
-
-   [![Launch Azure Cloud Shell](https://learn.microsoft.com/azure/includes/media/cloud-shell-try-it/launchcloudshell.png)](https://shell.azure.com)
-
 3. 最新の [Azure CLI をインストール](https://docs.microsoft.com/ja-jp/cli/azure/install-azure-cli?view=azure-cli-latest) します (少なくとも 2.40 である必要があります)。 または、以下をクリックして Azure Cloud Shell から実行できます。
 
    [![Launch Azure Cloud Shell](https://docs.microsoft.com/ja-jp/azure/includes/media/cloud-shell-try-it/launchcloudshell.png)](https://shell.azure.com)
