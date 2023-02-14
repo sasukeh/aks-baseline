@@ -15,7 +15,7 @@
 
    > :book: ウェブサイトのための CA 証明書を取得する必要があります。このサイトはユーザーに公開されるため、EV 証明書を購入します。Azure Application Gateway の前に配置されます。また、AKS Ingress Controller に使用する別の証明書も取得します。この証明書は、ユーザーに公開されないため、EV 証明書ではありません。
 
-   :worning: このスクリプトで作成された証明書を実際のデプロイメントに使用しないでください。自己署名証明書の使用は、説明のために簡単にするためにのみ提供されています。クラスターの場合は、組織の要件に従って TLS 証明書の取得とライフタイム管理を行います。_開発目的であっても_。
+   :warning: このスクリプトで作成された証明書を実際のデプロイメントに使用しないでください。自己署名証明書の使用は、説明のために簡単にするためにのみ提供されています。クラスターの場合は、組織の要件に従って TLS 証明書の取得とライフタイム管理を行います。_開発目的であっても_。
 
    Azure Application Gateway がクライアントに提供するドメインの証明書を作成します。
 
@@ -45,12 +45,10 @@
 
    :bulb: 組織から証明書を使用した場合でも、上記の手順で生成した証明書を使用した場合でも、正しく Key Vault に格納するためには、公開証明書（`.crt` または `.cer`）を Base64 エンコードする必要があります。
 
-   ```bash 
+   ```bash
    export AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE=$(cat traefik-ingress-internal-aks-ingress-tls.crt traefik-ingress-internal-aks-ingress-tls.key | base64 | tr -d '\n')
    echo AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE: $AKS_INGRESS_CONTROLLER_CERTIFICATE_PFX_BASE64_AKS_BASELINE
    ```
-
-### Save your work in-progress
 
 ### 作業の途中経過を保存する
 

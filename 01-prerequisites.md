@@ -1,17 +1,9 @@
-# Prerequisites
-
 # 事前準備
 
-This is the starting point for the instructions on deploying the [AKS baseline reference implementation](./README.md). There is required access and tooling you'll need in order to accomplish this. Follow the instructions below and on the subsequent pages so that you can get your environment ready to proceed with the AKS cluster creation.
+[AKS ベースラインリファレンス実装](./README.md) の展開に関する手順の開始地点です。 これを達成するために必要なアクセスとツールがあります。 次のページの手順に従って、 AKS クラスターの作成を進めるための環境を準備してください。
 
-[AKS ベースラインリファレンス実装] の展開に関する手順の開始地点です。 これを達成するために必要なアクセスとツールがあります。 次のページの手順に従って、 AKS クラスターの作成を進めるための環境を準備してください。
-
-| :clock10: | These steps are intentionally verbose, intermixed with context, narrative, and guidance. The deployments are all conducted via [Bicep templates](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), but they are executed manually via `az cli` commands. We strongly encourage you to dedicate time to walk through these instructions, with a focus on learning. We do not provide any "one click" method to complete all deployments.<br><br>Once you understand the components involved and have identified the shared responsibilities between your team and your greater organization, you are encouraged to build suitable, repeatable deployment processes around your final infrastructure and cluster bootstrapping. The [AKS baseline automation guidance](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) is a great place to learn how to build your own automation pipelines. That guidance is based on the same architecture foundations presented here in the AKS baseline, and illustrates GitHub Actions based deployments for all components, including workloads. |
+| :clock10: | これらの手順は意図的に冗長であり、コンテキスト、ストーリー、およびガイダンスとともに混在しています。 デプロイはすべて [Bicep テンプレート](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview) で実行されますが、 `az cli` コマンドを介して手動で実行されます。 私たちは、これらの手順を通じて時間を割いて学習に焦点を当てて歩くことを強くお勧めします。 すべてのデプロイメントを完了するための「1 クリック」方法は提供していません。<br><br>コンポーネントが含まれていることを理解し、チームと組織の共有の責任を特定したら、最終的なインフラストラクチャとクラスターのブートストラップに囲む適切な繰り返し可能なデプロイメントプロセスを構築することをお勧めします。 [AKS ベースライン自動化ガイダンス](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) は、自分の自動化パイプラインを構築する方法を学ぶのに最適な場所です。 そのガイダンスは、ここで紹介されている AKS ベースラインの同じアーキテクチャの基礎に基づいており、すべてのコンポーネントを含むワークロードに基づいた GitHub Actions ベースのデプロイを示しています。 |
 |-----------|:--------------------------|
-
-| :clock10: | これらの手順は意図的に冗長であり、コンテキスト、ネarrative、およびガイダンスとともに混在しています。 デプロイはすべて [Bicep テンプレート] で実行されますが、 `az cli` コマンドを介して手動で実行されます。 私たちは、これらの手順を通じて時間を割いて学習に焦点を当てて歩くことを強くお勧めします。 すべてのデプロイメントを完了するための「1 クリック」方法は提供していません。<br><br>コンポーネントが含まれていることを理解し、チームと組織の共有の責任を特定したら、最終的なインフラストラクチャとクラスターのブートストラップに囲む適切な繰り返し可能なデプロイメントプロセスを構築することをお勧めします。 [AKS ベースライン自動化ガイダンス] は、自分の自動化パイプラインを構築する方法を学ぶのに最適な場所です。 そのガイダンスは、ここで紹介されている AKS ベースラインの同じアーキテクチャの基礎に基づいており、すべてのコンポーネントを含むワークロードに基づいた GitHub Actions ベースのデプロイを示しています。 |
-
-## Steps
 
 ## 手順
 
@@ -42,11 +34,11 @@ This is the starting point for the instructions on deploying the [AKS baseline r
 
 4. 次の機能はまだ _プレビュー_ ですが、ターゲット サブスクリプションで有効にしてください。
 
-   1. [Defender for Containers プレビュー機能 = `AKS-AzureDefender` を登録](https://docs.microsoft.com/ja-jp/azure/azure-defender-for-containers/quickstart-onboard-aks?pivots=client-operating-system-linux#register-the-defender-for-containers-preview-feature)
+   1. [Defender for Containers (GA済) = `AKS-AzureDefender` を登録](https://learn.microsoft.com/ja-jp/azure/defender-for-cloud/defender-for-containers-enable)
 
-   2. [Workload Identity プレビュー機能 = `EnableWorkloadIdentityPreview` を登録](https://docs.microsoft.com/ja-jp/azure/aks/use-managed-identity#register-the-enableworkloadidentitypreview-feature-flag)
+   2. [Workload Identity プレビュー機能 = `EnableWorkloadIdentityPreview` を登録](https://learn.microsoft.com/ja-jp/azure/aks/workload-identity-overview)
 
-   3. [ImageCleaner (Earser) プレビュー機能 = `EnableImageCleanerPreview` を登録](https://docs.microsoft.com/ja-jp/azure/aks/clean-up-unused-container-images#prerequisites)
+   3. [ImageCleaner (Earser) プレビュー機能 = `EnableImageCleanerPreview` を登録](https://learn.microsoft.com/ja-jp/azure/aks/image-cleaner?tabs=azure-cli)
 
    ```bash
    az feature register --namespace "Microsoft.ContainerService" -n "AKS-AzureDefender"
@@ -70,10 +62,6 @@ This is the starting point for the instructions on deploying the [AKS baseline r
    git clone https://github.com/sasukeh/aks-baseline.git
    cd aks-baseline
    ```
-
-6. Ensure [OpenSSL is installed](https://github.com/openssl/openssl#download) in order to generate self-signed certs used in this implementation. _OpenSSL is already installed in Azure Cloud Shell._
-
-   > :warning: Some shells may have the `openssl` command aliased for LibreSSL. LibreSSL will not work with the instructions found here. You can check this by running `openssl version` and you should see output that says `OpenSSL <version>` and not `LibreSSL <version>`.
 
 6. この実装で使用される自己署名証明書を生成するために [OpenSSL をインストール](https://github.com/openssl/openssl#download) してください。 _OpenSSL は Azure Cloud Shell にすでにインストールされています。_
 
