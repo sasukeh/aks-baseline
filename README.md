@@ -1,42 +1,47 @@
-# Azure Kubernetes Service (AKS) baseline cluster
+# Azure Kubernetes Service (AKS) ベースラインクラスター
 
-This reference implementation demonstrates the _recommended starting (baseline) infrastructure architecture_ for a general purpose [AKS cluster](https://azure.microsoft.com/services/kubernetes-service). This implementation and document is meant to guide an interdisciplinary team or multiple distinct teams like networking, security and development through the process of getting this general purpose baseline infrastructure deployed and understanding the components of it.
 
-We walk through the deployment here in a rather _verbose_ method to help you understand each component of this cluster, ideally teaching you about each layer and providing you with the knowledge necessary to apply it to your workload.
+このリファレンス実装は、一般的な [AKS クラスター](https://azure.microsoft.com/services/kubernetes-service) の _推奨される開始 (ベースライン) インフラストラクチャ アーキテクチャ_ を示します。この実装とドキュメントは、ネットワーキング、セキュリティ、および開発のような複数の異なるチームを通して、この一般的なベースラインインフラストラクチャを展開し、そのコンポーネントを理解するためのプロセスを導くことを目的としています。
 
-## Azure Architecture Center guidance
 
-This project has a companion set of articles that describe challenges, design patterns, and best practices for a secure AKS cluster. You can find this article on the Azure Architecture Center at [Azure Kubernetes Service (AKS) baseline cluster](https://aka.ms/architecture/aks-baseline). If you haven't reviewed it, we suggest you read it as it will give added context to the considerations applied in this implementation. Ultimately, this is the direct implementation of that specific architectural guidance.
+ここでは、各コンポーネントを理解するために、 _冗長な_ 方法で展開を行います。理想的には、各レイヤーについて理解し、それを自分のワークロードに適用するために必要な知識を提供します。
 
-## Architecture
+## Azure Architecture Center のガイダンス
 
-**This architecture is infrastructure focused**, more so than on workload. It concentrates on the AKS cluster itself, including concerns with identity, post-deployment configuration, secret management, and network topologies.
+このプロジェクトには、セキュアな AKS クラスターの課題、デザイン パターン、およびベスト プラクティスのコンパニオン セットの記事があります。Azure Architecture Center の [Azure Kubernetes Service (AKS) ベースラインクラスター](https://aka.ms/architecture/aks-baseline) で見つけることができます。まだ読んでいない場合は、この実装に適用された考慮事項を追加するコンテキストを提供するために、それを読むことをお勧めします。最終的に、これは、その特定のアーキテクチャ ガイダンスの直接の実装です。
 
-The implementation presented here is the _minimum recommended baseline for most AKS clusters_. This implementation integrates with Azure services that will deliver observability, provide a network topology that will support multi-regional growth, and keep the in-cluster traffic secure as well. This architecture should be considered your starting point for pre-production and production stages.
+## アーキテクチャ
 
-The material here is relatively dense. We strongly encourage you to dedicate time to walk through these instructions, with a mind to learning. We do NOT provide any "one click" deployment here. However, once you've understood the components involved and identified the shared responsibilities between your team and your great organization, it is encouraged that you build suitable, auditable deployment processes around your final infrastructure.
 
-Throughout the reference implementation, you will see reference to _Contoso Bicycle_. They are a fictional small and fast-growing startup that provides online web services to its clientele on the west coast of North America. They have no on-premises data centers and all their containerized line of business applications are now about to be orchestrated by secure, enterprise-ready AKS clusters. You can read more about [their requirements and their IT team composition](./contoso-bicycle/README.md). This narrative provides grounding for some implementation details, naming conventions, etc. You should adapt as you see fit.
+**このアーキテクチャはインフラストラクチャに焦点を当てています**。より多くのワークロードに焦点を当てています。AKS クラスター自体に焦点を当てています。これには、アイデンティティ、デプロイ後の構成、シークレット管理、およびネットワークトポロジーに関する懸念が含まれます。
 
-Finally, this implementation uses the [ASP.NET Core Docker sample web app](https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp) as an example workload. This workload is purposefully uninteresting, as it is here exclusively to help you experience the baseline infrastructure.
+この実装は、Azure サービスとの統合を通じて、観測性を提供し、複数のリージョンでの成長をサポートするネットワークトポロジーを提供し、クラスター内のトラフィックを安全に保つようにします。このアーキテクチャは、プレプロダクションとプロダクションのステージの開始点として考慮する必要があります。
 
-### Core architecture components
+ここの資料は、比較的密集しています。これらの手順を理解するために時間を割くことを強くお勧めします。ここでは、"一発クリック" デプロイは提供していません。ただし、コンポーネントを理解し、チームと組織の間の共有の責任を特定した後は、最終的なインフラストラクチャに対して適切で監査可能なデプロイメント プロセスを構築することをお勧めします。
+
+リファレンス実装を通じて、_Contoso Bicycle_ への参照が表示されます。これは、北米西海岸にある顧客にオンライン Web サービスを提供する小さくて急成長している仮想のスタートアップです。彼らはオンプレミスのデータ センターを持っていません。すべてのコンテナ化されたビジネス アプリケーションは、安全で企業向けの AKS クラスターによってオーケストレートされるようになりました。[彼らの要件と IT チームの構成](./contoso-bicycle/README.md) について詳しく読むことができます。このネタは、いくつかの実装の詳細、命名規則などの基盤を提供します。必要に応じて適応してください。
+
+最後に、この実装では、[ASP.NET Core Docker サンプル Web アプリ](https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp)を例のワークロードとして使用します。このワークロードは、基本的なインフラストラクチャを体験するのに役立つために、無関心にしています。
+
+### コア アーキテクチャ コンポーネント
 
 #### Azure platform
 
+#### Azure プラットフォーム
+
 - AKS v1.25
-  - System and User [node pool separation](https://learn.microsoft.com/azure/aks/use-system-pools)
-  - [AKS-managed Azure AD](https://learn.microsoft.com/azure/aks/managed-aad)
-  - Azure AD-backed Kubernetes RBAC (_local user accounts disabled_)
-  - Managed Identities
+  - システムとユーザー [ノード プールの分離](https://learn.microsoft.com/azure/aks/use-system-pools)
+  - [AKS 管理の Azure AD](https://learn.microsoft.com/azure/aks/managed-aad)
+  - Azure AD ベースの Kubernetes RBAC (_ローカルユーザーアカウントは無効になっています_)
+  - Managed ID
   - Azure CNI
   - [Azure Monitor for containers](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-overview)
-- Azure Virtual Networks (hub-spoke)
-  - Azure Firewall managed egress
-- Azure Application Gateway (WAF)
-- AKS-managed Internal Load Balancers
+  - Azure Virtual Networks (hub-spoke)
+    - Azure Firewall managed egress
+  - Azure Application Gateway (WAF)
+  - AKS 管理の内部ロード バランサー
 
-#### In-cluster OSS components
+#### クラスター内の OSS コンポーネント
 
 - [Azure Workload Identity](https://learn.microsoft.com/azure/aks/workload-identity-overview) _[AKS-managed add-on]_
 - [Flux GitOps Operator](https://fluxcd.io) _[AKS-managed extension]_
@@ -48,79 +53,78 @@ Finally, this implementation uses the [ASP.NET Core Docker sample web app](https
 
 ![Network diagram depicting a hub-spoke network with two peered VNets and main Azure resources used in the architecture.](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks/images/secure-baseline-architecture.svg)
 
-## Deploy the reference implementation
+## リファレンス実装のデプロイ
 
-A deployment of AKS-hosted workloads typically experiences a separation of duties and lifecycle management in the area of prerequisites, the host network, the cluster infrastructure, and finally the workload itself. This reference implementation is similar. Also, be aware our primary purpose is to illustrate the topology and decisions of a baseline cluster. We feel a "step-by-step" flow will help you learn the pieces of the solution and give you insight into the relationship between them. Ultimately, lifecycle/SDLC management of your cluster and its dependencies will depend on your situation (team roles, organizational standards, etc), and will be implemented as appropriate for your needs.
+AKS ホステッド ワークロードのデプロイでは、通常、前提条件、ホスト ネットワーク、クラスター インフラストラクチャ、最後にワークロード自体のエリアで責任の分離とライフサイクル管理が発生します。このリファレンス実装も同様です。また、ベースライン クラスターのトポロジーと決定を示すことを主な目的としていることに注意してください。私たちは、"ステップ バイ ステップ" フローがソリューションの一部を学び、それらの関係性について洞察を得るのに役立つと考えています。最終的には、クラスターとその依存関係のライフサイクル/SDLC 管理は、状況に応じて (チームの役割、組織の標準など) 、必要に応じて実装されます。
 
-**Please start this learning journey in the _Preparing for the cluster_ section.** If you follow this through to the end, you'll have our recommended baseline cluster installed, with an end-to-end sample workload running for you to reference in your own Azure subscription.
+** この学習の旅を _Preparing for the cluster_ セクションから開始してください。 ** これを最後まで実行すると、推奨されるベースライン クラスターがインストールされ、終端から終端までのサンプル ワークロードが実行され、自分の Azure サブスクリプションで参照できるようになります。
+### 1. :rocket: クラスターの準備
 
-### 1. :rocket: Preparing for the cluster
+クラスターをデプロイする前に、考慮すべき点があります。このサイズのデプロイを行うには、サブスクリプションと AD テナントで十分な権限があるかどうか？これは、自分のチームが直接対応するのか、別のチームが責任を負うのか、といった点でどの程度対応するのか？などです。
 
-There are considerations that must be addressed before you start deploying your cluster. Do I have enough permissions in my subscription and AD tenant to do a deployment of this size? How much of this will be handled by my team directly vs having another team be responsible?
+- [ ] [事前準備](./01-prerequisites.md)に進み、必要なものをインストールします。
+- [ ] [クライアント向けおよび AKS Ingress コントローラーの TLS 証明書を取得します](./02-ca-certificates.md)
+- [ ] [Azure AD 統合を計画します](./03-aad.md)
 
-- [ ] Begin by ensuring you [install and meet the prerequisites](./01-prerequisites.md)
-- [ ] [Procure client-facing and AKS Ingress Controller TLS certificates](./02-ca-certificates.md)
-- [ ] [Plan your Azure Active Directory integration](./03-aad.md)
+### 2. ターゲット ネットワークの構築
 
-### 2. Build target network
+Microsoft は、AKS を計画的に構築することをお勧めします。必要なサイズに適切にサイズされ、適切なネットワークの監視が可能である必要があります。組織では通常、従来のハブ-スポーク モデルが好まれます。この実装では、このモデルが反映されています。このモデルは標準のハブ-スポーク モデルですが、理解すべき基本的なサイジングと分割の考慮事項が含まれています。
 
-Microsoft recommends AKS be deploy into a carefully planned network; sized appropriately for your needs and with proper network observability. Organizations typically favor a traditional hub-spoke model, which is reflected in this implementation. While this is a standard hub-spoke model, there are fundamental sizing and portioning considerations included that should be understood.
+- [ ] [ハブ-スポークネットワークを構築する](./04-networking.md)
 
-- [ ] [Build the hub-spoke network](./04-networking.md)
+### 3. クラスターのデプロイ
 
-### 3. Deploying the cluster
+リファレンス実装の中心となるガイダンスです。これは、前のネットワーク トポロジ ガイダンスとペアリングされています。ここでは、クラスターの Azure リソースと、Azure Application Gateway WAF、Azure Monitor、Azure Container Registry、Azure Key Vault などの隣接サービスをデプロイします。ここで、クラスターがブートストラップされていることを検証します。
 
-This is the heart of the guidance in this reference implementation; paired with prior network topology guidance. Here you will deploy the Azure resources for your cluster and the adjacent services such as Azure Application Gateway WAF, Azure Monitor, Azure Container Registry, and Azure Key Vault. This is also where you will validate the cluster is bootstrapped.
+- [ ] [クラスターブートストラップの準備](./05-bootstrap-prep.md)
+- [ ] [AKSクラスターとサポートサービスのデプロイ](./06-aks-cluster.md)
+- [ ] [クラスターブートストラップの検証](./07-bootstrap-validation.md)
 
-- [ ] [Prep for cluster bootstrapping](./05-bootstrap-prep.md)
-- [ ] [Deploy the AKS cluster and supporting services](./06-aks-cluster.md)
-- [ ] [Validate cluster bootsrapping](./07-bootstrap-validation.md)
+前段のステップは、ここで手動で実行することで、関連するコンポーネントを理解できますが、私たちは自動化された DevOps プロセスを推奨します。したがって、IaC と同様に、CI/CD パイプラインに前段のステップを組み込んでください。詳細については、専用の [AKS ベースライン自動化ガイダンス](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) を参照してください。
 
-We perform the prior steps manually here for you to understand the involved components, but we advocate for an automated DevOps process. Therefore, incorporate the prior steps into your CI/CD pipeline, as you would any infrastructure as code (IaC). See the dedicated [AKS baseline automation guidance](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) for additional details.
+### 4. ワークロードのデプロイ
 
-### 4. Deploy your workload
+クラスターへのワークロードのデプロイは、この基盤がビジネスの信頼できるアプリケーション プラットフォームとして機能する方法を理解するためには、困難です。このワークロードのデプロイは、通常、CI/CD パターンに従い、さらに高度なデプロイ戦略（ブルー/グリーンなど）を含む可能性があります。次のステップは、この基盤の説明のために適した手動デプロイを表します。
 
-Without a workload deployed to the cluster it will be hard to see how these decisions come together to work as a reliable application platform for your business. The deployment of this workload would typically follow a CI/CD pattern and may involve even more advanced deployment strategies (blue/green, etc). The following steps represent a manual deployment, suitable for illustration purposes of this infrastructure.
+- [ ] クラスターのために、[ワークロードの準備を行います](./08-workload-prerequisites.md)
+- [ ] [Azure Keyvault と AKS Ingress コントローラーの統合を構成します](./09-secret-management-and-ingress-controller.md)
+- [ ] [ワークロードをデプロイします](./10-workload.md)
 
-- [ ] Just like the cluster, there are [workload prerequisites to address](./08-workload-prerequisites.md)
-- [ ] [Configure AKS Ingress Controller with Azure Key Vault integration](./09-secret-management-and-ingress-controller.md)
-- [ ] [Deploy the workload](./10-workload.md)
+### 5. :checkered_flag: 検証
 
-### 5. :checkered_flag: Validation
+クラスターとサンプル ワークロードがデプロイされたら、クラスターがどのように機能しているかを確認します。
 
-Now that the cluster and the sample workload is deployed; it's time to look at how the cluster is functioning.
+- [ ] [エンドツーエンドの検証を実行します](./11-validation.md)
 
-- [ ] [Perform end-to-end deployment validation](./11-validation.md)
+## :broom: リソースの削除
 
-## :broom: Clean up resources
+前段のステップでデプロイされた Azure リソースのほとんどは、削除されない限り、継続的な課金が発生します。
 
-Most of the Azure resources deployed in the prior steps will incur ongoing charges unless removed.
+- [ ] [すべてのリソースの削除](./12-cleanup.md)
 
-- [ ] [Cleanup all resources](./12-cleanup.md)
+## プレビューと追加機能
 
-## Preview and additional features
+Kubernetes と AKS は、急速に進化する製品です。[AKS ロードマップ](https://aka.ms/AKS/Roadmap) には、製品の変化がどのように速いかが示されています。このリファレンス実装では、AKS チームが「Shipped & Improving」として説明するプレビュー機能のいくつかに依存しています。その背景にある理由は、多くのプレビュー機能が数ヶ月しか続かないためです。GA に入る前に、今日クラスターをアーキテクチャリングしている場合、多くのプレビュー機能が近づいているか、すでに GA に入っている可能性があります。
 
-Kubernetes and, by extension, AKS are fast-evolving products. The [AKS roadmap](https://aka.ms/AKS/Roadmap) shows how quick the product is changing. This reference implementation does take dependencies on select preview features which the AKS team describes as "Shipped & Improving." The rational behind that is that many of the preview features stay in that state for only a few months before entering GA. If you are just artchitecting your cluster today, by the time you're ready for production, there is a good chance that many of the preview features are nearing or will have hit GA.
-
-This implementation will not include every preview feature, but instead only those that add significant value to a general-purpose cluster. There are some additional preview features you may wish to evaluate in pre-production clusters that augment your posture around security, manageability, etc. As these features come out of preview, this reference implementation may be updated to incorporate them. Consider trying out and providing feedback on the following:
+以下の実装は、すべてのプレビュー機能を含みませんが、一般的なクラスターに大きな価値を追加するもののみを含みます。セキュリティ、管理可能性などのポスチャーを強化するために、プレプロダクションクラスターで評価することをお勧めします。これらの機能がプレビューから出てくると、このリファレンス実装はそれらを組み込むように更新される可能性があります。以下の機能を試してフィードバックを提供してください。
 
 - [BYO Kubelet Identity](https://learn.microsoft.com/azure/aks/use-managed-identity#bring-your-own-kubelet-mi)
 - [Planned maintenance window](https://learn.microsoft.com/azure/aks/planned-maintenance)
 - [BYO CNI (`--network-plugin none`)](https://learn.microsoft.com/azure/aks/use-byo-cni)
 - [Simplified application autoscaling with Kubernetes Event-driven Autoscaling (KEDA) add-on](https://learn.microsoft.com/azure/aks/keda)
 
-## Related reference implementations
+## 関連リファレンス実装
 
-The AKS baseline was used as the foundation for the following additional reference implementations. These build on the learnings of the AKS baseline and applies a specific lens to the cluster to align a specific topology, requirement, and/or workload type.
+AKS ベースラインは、次の追加のリファレンス実装の基礎として使用されました。これらは、AKS ベースラインの学習を基にしており、特定のトポロジー、要件、および/またはワークロード タイプに合わせてクラスターに特定のレンズを適用します。
 
 - [AKS baseline for multi-region clusters](https://github.com/mspnp/aks-baseline-multi-region)
 - [AKS baseline for regulated workloads](https://github.com/mspnp/aks-baseline-regulated)
 - [AKS baseline for microservices](https://github.com/mspnp/aks-fabrikam-dronedelivery)
 - [Azure landing zones, enterprise-scale reference implementation using Terraform](https://github.com/Azure/caf-terraform-landingzones-starter/tree/starter/enterprise_scale/construction_sets/aks/online/aks_secure_baseline)
 
-## Advanced topics
+## 進歩的なトピック
 
-This reference implementation intentionally does not cover more advanced scenarios. For example topics like the following are not addressed:
+このリファレンス実装では、より高度なシナリオをカバーすることは意図的に行っていません。以下のようなトピックは対象外となっています。
 
 - Cluster lifecycle management with regard to SDLC and GitOps
 - Workload SDLC integration (including concepts like [Bridge to Kubernetes](https://learn.microsoft.com/visualstudio/containers/bridge-to-kubernetes), advanced deployment techniques, [Draft](https://learn.microsoft.com/azure/aks/draft), etc)
@@ -133,22 +137,23 @@ This reference implementation intentionally does not cover more advanced scenari
 - [Terraform](https://learn.microsoft.com/azure/developer/terraform/create-k8s-cluster-with-tf-and-aks)
 - [dapr](https://github.com/dapr/dapr)
 
-Keep watching this space, as we build out reference implementation guidance on topics such as these. Further guidance delivered will use this baseline AKS implementation as their starting point. If you would like to contribute or suggest a pattern built on this baseline, [please get in touch](./CONTRIBUTING.md).
+このスペースを維持するために、これらのようなトピックに関するリファレンス実装ガイダンスを構築しています。さらにガイダンスが提供されると、このベースライン AKS 実装が開始点として使用されます。このベースラインを使用して構築されたパターンを提案したい場合は、[お問い合わせください](./CONTRIBUTING.md)。
 
-## Final thoughts
+## 最後に
 
-Kubernetes is a very flexible platform, giving infrastructure and application operators many choices to achieve their business and technology objectives. At points along your journey, you will need to consider when to take dependencies on Azure platform features, OSS solutions, support channels, regulatory compliance, and operational processes. **We encourage this reference implementation to be the place for you to _start_ architectural conversations within your own team; adapting to your specific requirements, and ultimately delivering a solution that delights your customers.**
+Kubernetes は、とても柔軟なプラットフォームであり、インフラストラクチャおよびアプリケーション オペレーターには、ビジネスとテクノロジの目標を達成するための多くの選択肢を提供します。旅の途中で、Azure プラットフォーム機能、OSS ソリューション、サポート チャネル、規制遵守、および運用プロセスに依存するタイミングを検討する必要があります。**このリファレンス実装を、自分のチーム内でアーキテクチャの会話を始める場所として使用することをお勧めします。特定の要件に適応し、最終的にお客様を喜ばせるソリューションを提供します。**
 
-## Related documentation
+## 関連ドキュメント
 
 - [Azure Kubernetes Service Documentation](https://learn.microsoft.com/azure/aks/)
 - [Microsoft Azure Well-Architected Framework](https://learn.microsoft.com/azure/architecture/framework/)
 - [Microservices architecture on AKS](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks-microservices/aks-microservices)
 
-## Contributions
+## コントリビュート・貢献
 
-Please see our [contributor guide](./CONTRIBUTING.md).
+[コントリビューターガイド](./CONTRIBUTING.md)をご覧ください。
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact <opencode@microsoft.com> with any additional questions or comments.
+このプロジェクトは、[Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/)を採用しています。詳細については、[Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)を参照するか、追加の質問やコメントがある場合は、<opencode@microsoft.com>にご連絡ください。
 
 With :heart: from Microsoft Patterns & Practices, [Azure Architecture Center](https://aka.ms/architecture).
+
