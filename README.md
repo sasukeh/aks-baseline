@@ -126,17 +126,6 @@ AKS ベースラインは、次の追加のリファレンス実装の基礎と�
 
 このリファレンス実装では、より高度なシナリオをカバーすることは意図的に行っていません。以下のようなトピックは対象外となっています。
 
-- Cluster lifecycle management with regard to SDLC and GitOps
-- Workload SDLC integration (including concepts like [Bridge to Kubernetes](https://learn.microsoft.com/visualstudio/containers/bridge-to-kubernetes), advanced deployment techniques, [Draft](https://learn.microsoft.com/azure/aks/draft), etc)
-- Container security
-- Multiple (related or unrelated) workloads owned by the same team
-- Multiple workloads owned by disparate teams (AKS as a shared platform in your organization)
-- Cluster-contained state (PVC, etc)
-- Windows node pools
-- Scale-to-zero node pools and event-based scaling (KEDA)
-- [Terraform](https://learn.microsoft.com/azure/developer/terraform/create-k8s-cluster-with-tf-and-aks)
-- [dapr](https://github.com/dapr/dapr)
-
 - クラスターのライフサイクル管理に関する SDLC と GitOps
 - ワークロード SDLC 統合（[Bridge to Kubernetes](https://learn.microsoft.com/visualstudio/containers/bridge-to-kubernetes) などの概念、高度なデプロイメント テクニック、[Draft](https://learn.microsoft.com/azure/aks/draft) など）
 - コンテナー セキュリティ
