@@ -1,56 +1,57 @@
-# End-to-end validation
+# エンドツーエンドの検証
 
-Now that you have a workload deployed, the [ASP.NET Core sample web app](./10-workload.md), you can start validating and exploring this reference implementation of the [AKS baseline cluster](./). In addition to the workload, there are some observability validation you can perform as well.
+ワークロードがデプロイされたので、[ASP.NET Core サンプル Web アプリ](./10-workload.md)の[AKS ベースライン クラスター](./)の参考実装を検証および探索できます。ワークロードに加えて、観測性の検証も実施できます。
 
-## Validate the web app
+## Web アプリの検証
 
-This section will help you to validate the workload is exposed correctly and responding to HTTP requests.
+このセクションは、ワークロードが正しく公開され、HTTP リクエストに応答していることを確認するのに役立ちます。
 
 ### Steps
 
-1. Get the public IP address of Application Gateway.
+### 手順
 
-   > :book: The app team conducts a final acceptance test to be sure that traffic is flowing end-to-end as expected, so they place a request against the Azure Application Gateway endpoint.
+1. アプリケーション ゲートウェイのパブリック IP アドレスを取得します。
+
+   > :book: App チームは、最終的な受入テストを実施して、エンド ツー エンドで期待どおりのトラフィックが流れていることを確認します。そのため、Azure Application Gateway エンドポイントに対してリクエストを行います。
 
    ```bash
-   # query the Azure Application Gateway Public Ip
+   # Azure Application Gateway のパブリック IP アドレスを問い合わせます
    APPGW_PUBLIC_IP=$(az deployment group show --resource-group rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.appGwPublicIpAddress.value -o tsv)
-   echo APPGW_PUBLIC_IP: $APPGW_PUBLIC_IP
    ```
 
-1. Create an `A` record for DNS.
+2. DNS に `A` レコードを作成します。
 
-   > :bulb: You can simulate this via a local hosts file modification. You're welcome to add a real DNS entry for your specific deployment's application domain name, if you have access to do so.
+   > :bulb: ローカルホストファイルの変更からシミュレートできます。特定のデプロイメントのアプリケーション ドメイン名に実際の DNS エントリを追加することもできます（アクセス権がある場合）。
 
-   Map the Azure Application Gateway public IP address to the application domain name. To do that, please edit your hosts file (`C:\Windows\System32\drivers\etc\hosts` or `/etc/hosts`) and add the following record to the end: `${APPGW_PUBLIC_IP} bicycle.${DOMAIN_NAME_AKS_BASELINE}` (e.g. `50.140.130.120   bicycle.contoso.com`)
+   Azure Application Gateway のパブリック IP アドレスをアプリケーション ドメイン名にマッピングします。そのため、ホスト ファイル（`C:\Windows\System32\drivers\etc\hosts` または `/etc/hosts`）を編集し、次のレコードを末尾に追加します：`${APPGW_PUBLIC_IP} bicycle.${DOMAIN_NAME_AKS_BASELINE}`（例：`
 
-1. Browse to the site (e.g. <https://bicycle.contoso.com>).
+3. サイトにアクセスします（例： <https://bicycle.contoso.com>）。
 
-   > :bulb: Remember to include the protocol prefix `https://` in the URL you type in the address bar of your browser. A TLS warning will be present due to using a self-signed certificate. You can ignore it or import the self-signed cert (`appgw.pfx`) to your user's trusted root store.
+   > :bulb: ブラウザのアドレスバーに URL を入力するときは、プロトコル接頭辞 `https://` を忘れないでください。自己署名証明書を使用しているため、TLS 警告が表示されます。無視するか、ユーザーの信頼されたルート ストアに自己署名証明書（`appgw.pfx`）をインポートすることができます。
 
-   Refresh the web page a couple of times and observe the value `Host name` displayed at the bottom of the page. As the Traefik Ingress Controller balances the requests between the two pods hosting the web page, the host name will change from one pod name to the other throughtout your queries.
+   Web ページを数回更新し、ページの下部に表示される値 `Host name` を観察します。Traefik Ingress コントローラーが、Web ページをホストする 2 つの Pod の間でリクエストをバランスするため、ホスト名は、クエリを実行するときに、1 つの Pod 名からもう 1 つの Pod 名に変更されます。
 
-## Validate reader access to the a0008 namespace. _Optional._
+## a0008 名前空間へのリーダー アクセスの検証。_オプションです。_
 
-When setting up [Azure AD security groups](./03-aad.md) you created a group to be used as a "reader" for the namespace a0008. If you want to experience this RBAC example, you'll want to add a user to that group.
+[Azure AD セキュリティグループ](./03-aad.md) を設定したとき、a0008 名前空間の「リーダー」として使用するグループを作成しました。この RBAC の例を体験したい場合は、そのグループにユーザーを追加する必要があります。
 
-If Azure RBAC is your cluster's Kubernetes RBAC backing store, then that is all that is needed.
+Azure RBAC がクラスターの Kubernetes RBAC のバックストアとして使用されている場合は、これだけで十分です。
 
-If instead Kubernetes RBAC is backed directly by Azure AD, then you'll need to ensure that you've updated and applied the [`rbac.yaml`](./cluster-manifests/a0008/rbac.yaml) according to the instructions found at the end of the [Azure AD configuration page](./03-aad.md).
+もし、Kubernetes RBAC が Azure AD に直接設定されている場合は、[Azure AD 設定ページ](./03-aad.md) の最後にある手順に従って、[`rbac.yaml`](./cluster-manifests/a0008/rbac.yaml) を更新して適用する必要があります。
 
-No matter which backing store you use, the user assigned to the group will then be able to `az aks get-credentials` to the cluster and you can validate that user is limited to a _read only_ view of the a0008 namespace.
+どちらのバックストアを使用していても、グループに割り当てられたユーザーは、クラスターに `az aks get-credentials` を実行できるようになり、a0008 名前空間の _読み取り専用_ ビューに制限されていることを検証できます。
 
-## Validate Azure Policy
+## Azure ポリシーの確認
 
-Built-in as well as custom policies are applied to the cluster as part of the [cluster deployment step](./06-aks-cluster.md) to ensure that workloads deployed to the cluster comply with the team's governance rules. Policy assignments with effect [`audit`](https://learn.microsoft.com/azure/governance/policy/concepts/effects#audit) will create a warning in the activity log and show violations in the Azure Policy blade in the portal, providing an aggregated view of the compliance state and the option to identify violating resources. Policy assignments with effect [`deny`](https://learn.microsoft.com/azure/governance/policy/concepts/effects#deny) will be enforced with the help of [Gatekeeper's admission controller webhook](https://open-policy-agent.github.io/gatekeeper/website/docs/) by denying API requests that would violate a policy otherwise.
+[クラスターのデプロイ ステップ](./06-aks-cluster.md) で、チームのガバナンス ルールに準拠するように、クラスターに組み込みポリシーとカスタム ポリシーが適用されます。効果 [`audit`](https://docs.microsoft.com/azure/governance/policy/concepts/effects#audit) のポリシー割り当ては、アクティビティ ログに警告を作成し、ポータルの Azure ポリシー ブレードで違反を表示し、コンプライアンス ステートと違反リソースを識別するオプションを提供することで、集約されたビューを表示します。効果 [`deny`](https://docs.microsoft.com/azure/governance/policy/concepts/effects#deny) のポリシー割り当ては、[Gatekeeper のアドミッション コントローラー Webhook](https://open-policy-agent.github.io/gatekeeper/website/docs/) の助けを借りて、ポリシーに違反する API リクエストを拒否することで強制されます。
 
-:bulb: Gatekeeper policies are implemented in the [policy language 'Rego'](https://learn.microsoft.com/azure/governance/policy/concepts/policy-for-kubernetes#policy-language). To deploy the policy of this reference architecture with the Azure platform, the Rego specification is Base64-encoded and stored in a field of the Azure Policy resource defined in `nested_K8sCustomIngressTlsHostsHaveDefinedDomainSuffix.bicep`. It might be insightful to decode the string with an Base64 decoder of your choice and investigate the declarative implementation.
+:bulb: Gatekeeper ポリシーは、[ポリシー言語 'Rego'](https://docs.microsoft.com/azure/governance/policy/concepts/policy-for-kubernetes#policy-language) で実装されています。Azure プラットフォームでこのリファレンス アーキテクチャのポリシーをデプロイするには、Rego 仕様を Base64 でエンコードし、`nested_K8sCustomIngressTlsHostsHaveDefinedDomainSuffix.bicep` で定義されている Azure ポリシー リソースのフィールドに格納します。Base64 デコーダーを使用して文字列をデコードし、宣言的な実装を調べることができるかもしれません。
 
-### Steps
+### 手順2：Azure ポリシーの確認
 
-1. Try to add a second `Ingress` resource to your workload namespace with the following command.
+1. 次のコマンドを使用して、ワークロード名前空間に 2 つ目の `Ingress` リソースを追加してみましょう。
 
-   Notice that the host value specified in the `rules` and the `tls` sections defines a domain name with suffix `invalid-domain.com` rather than the domain suffix you defined for your setup when you [created your certificates](./02-ca-certificates.md)).
+   `rules` と `tls` セクションで指定されたホスト値は、[証明書を作成する](./02-ca-certificates.md) ときに定義したドメイン サフィックスではなく、`invalid-domain.com` のドメイン サフィックスを定義しています。
 
    ```bash
    cat <<EOF | kubectl create -f -
@@ -77,124 +78,129 @@ Built-in as well as custom policies are applied to the cluster as part of the [c
    EOF
    ```
 
-2. Inspect the error message and remark that Gatekeeper's admission webhook rejects `bu0001a0008-00.aks-ingress.invalid-domain.com` as incompliant host.
+2. エラー メッセージを調べ、`bu0001a0008-00.aks-ingress.invalid-domain.com` を不適合ホストとして拒否する Gatekeeper のアドミッション Webhook が拒否したことに気づきます。
 
    ```output
    Error from server (Forbidden): error when creating "STDIN": admission webhook "validation.gatekeeper.sh" denied the request: [azurepolicy-k8scustomingresstlshostshavede-e64871e795ce3239cd99] TLS host must have one of defined domain suffixes. Valid domain names are ["contoso.com"]; defined TLS hosts are {"bu0001a0008-00.aks-ingress.invalid-domain.com"}; incompliant hosts are {"bu0001a0008-00.aks-ingress.invalid-domain.com"}.
    ```
 
-## Validate web application firewall functionality
+## Web アプリケーション ファイアウォール機能の確認
 
-Your workload is placed behind a Web Application Firewall (WAF), which has rules designed to stop intentionally malicious activity. You can test this by triggering one of the built-in rules with a request that looks malicious.
+ワークロードは、意図的に悪意のあるアクティビティを防ぐために設計されたルールを備えた Web アプリケーション ファイアウォール (WAF) の後ろに配置されています。これをテストするには、悪意のあるリクエストを発行して、組み込みルールの 1 つをトリガーします。
 
-> :bulb: This reference implementation enables the built-in OWASP 3.0 ruleset, in **Prevention** mode.
+> :bulb: このリファレンス アーキテクチャでは、**Prevention** モードで OWASP 3.0 ルールセットの組み込みルールを有効にします。
 
-### Steps
+### 手順3：Web アプリケーション ファイアウォール機能の確認
 
-1. Browse to the site with the following appended to the URL: `?sql=DELETE%20FROM` (e.g. <https://bicycle.contoso.com/?sql=DELETE%20FROM>).
-1. Observe that your request was blocked by Application Gateway's WAF rules and your workload never saw this potentially dangerous request.
-1. Blocked requests (along with other gateway data) will be visible in the attached Log Analytics workspace.
+1. 以下の URL に追加してサイトにブラウズします。`?sql=DELETE%20FROM` (例: <https://bicycle.contoso.com/?sql=DELETE%20FROM>)。
+2. リクエストがアプリケーション ゲートウェイの WAF ルールによってブロックされ、ワークロードがこの潜在的に危険なリクエストを見ることはなかったことに気づきます。
+3. 接続された Log Analytics ワークスペースには、ブロックされたリクエスト (および他のゲートウェイ データ) が表示されます。
 
-   Browse to the Application Gateway in the resource group `rg-bu0001-a0008` and navigate to the _Logs_ blade. Execute the following query below to show WAF logs and see that the request was rejected due to a _SQL Injection Attack_ (field _Message_).
+   リソースグループ `rg-bu0001-a0008` の Application Gateway に移動し、_Logs_ ブレードに移動します。次のクエリを実行して、WAF ログを表示し、_SQL Injection Attack_ (フィールド _Message_) によってリクエストが拒否されたことを確認します。
 
-   > :warning: Note that it may take a couple of minutes until the logs are transferred from the Application Gateway to the Log Analytics Workspace. So be a little patient if the query does not immediatly return results after sending the https request in the former step.
+   > :warning: アプリケーションゲートウェイから Log Analytics ワークスペースにログが転送されるまでには、数分かかる場合があります。そのため、前の手順で https リクエストを送信した後、クエリがすぐに結果を返さない場合は、少し待ってからクエリを実行してください。
 
    ```
    AzureDiagnostics
    | where ResourceProvider == "MICROSOFT.NETWORK" and Category == "ApplicationGatewayFirewallLog"
    ```
 
-## Validate cluster Azure Monitor insights and logs
+## クラスターの Azure Monitor のインサイトとログの確認
 
-Monitoring your cluster is critical, especially when you're running a production cluster. Therefore, your AKS cluster is configured to send [diagnostic information](https://learn.microsoft.com/azure/aks/monitor-aks) of categories _cluster-autoscaler_, _kube-controller-manager_, _kube-audit-admin_ and _guard_ to the Log Analytics Workspace deployed as part of the [bootstrapping step](./05-bootstrap-prep.md). Additionally, [Azure Monitor for containers](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-overview) is configured on your cluster to capture metrics and logs from your workload containers. Azure Monitor is configured to surface cluster logs, here you can see those logs as they are generated.
+本番環境クラスターを実行している場合、クラスターの監視は重要です。そのため、AKS クラスターは、[ブートストラップ ステップ](./05-bootstrap-prep.md) でデプロイされた Log Analytics ワークスペースに、カテゴリ _cluster-autoscaler_、_kube-controller-manager_、_kube-audit-admin_ および _guard_ のクラスター診断情報を送信するように構成されています。さらに、[Azure Monitor for containers](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-overview) がクラスターに構成され、ワークロード コンテナーからメトリックとログをキャプチャします。Azure Monitor は、クラスター ログを表面化するように構成されており、ここでは、生成されるときにこれらのログを確認できます。
 
-:bulb: If you need to inspect the behavior of the Kubernetes scheduler, enable the log category _kube-scheduler_ (either through the _Diagnostic Settings_ blade of your AKS cluster or by enabling the category in your `cluster-stamp.bicep` template). Note that this category is quite verbose and will impact the cost of your Log Analytics Workspace.
+:bulb: Kubernetes スケジューラーの動作を調べる必要がある場合は、_kube-scheduler_ ログ カテゴリを有効にします (AKS クラスターの _Diagnostic Settings_ ブレードを介して、または `cluster-stamp.bicep` テンプレートでカテゴリを有効にすることで)。このカテゴリは非常に冗長であり、Log Analytics ワークスペースのコストに影響を与えることに注意してください。
 
-### Steps
+### 手順4：クラスターの Azure Monitor のインサイトとログの確認
 
-1. In the Azure Portal, navigate to your AKS cluster resource.
-1. Click _Insights_ to see captured data.
+1. Azure Portal で AKS クラスター リソースに移動します。
+2. キャプチャーされたデータを確認するには、_Insights_ をクリックします。
 
-You can also execute [queries](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-tutorial) on the [cluster logs captured](https://learn.microsoft.com/azure/azure-monitor/containers/container-insights-log-query).
+[queries](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-tutorial) を実行して、[キャプチャされたクラスター ログ](https://learn.microsoft.com/azure/azure-monitor/containers/container-insights-log-query) を確認できます。
 
-1. In the Azure Portal, navigate to your AKS cluster resource.
-1. Click _Logs_ to see and query log data.
-   :bulb: There are several examples on the _Kubernetes Services_ category.
+1. Azure Portal で AKS クラスター リソースに移動します。
+2. _Logs_ をクリックし、ログ データを確認します。
+   :bulb: _Kubernetes Services_ カテゴリには、いくつかの例があります。
 
-## Validate Azure Monitor for containers (Prometheus metrics)
+## Azure Monitor for containers の検証 (Prometheus メトリック)
 
-Azure Monitor is configured to [scrape Prometheus metrics](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-prometheus-integration) in your cluster. This reference implementation is configured to collect Prometheus metrics from two namespaces, as configured in [`container-azm-ms-agentconfig.yaml`](./cluster-baseline-settings/container-azm-ms-agentconfig.yaml). There are two pods configured to emit Prometheus metrics:
+Azure モニターは、クラスターの [Prometheus メトリックをスクレイプ](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-prometheus-integration) するように構成されています。このリファレンス実装では、[`container-azm-ms-agentconfig.yaml`](./cluster-baseline-settings/container-azm-ms-agentconfig.yaml) で構成されているように、2 つのネームスペースから Prometheus メトリックを収集するように構成されています。Prometheus メトリックを出力するように構成されている 2 つのポッドがあります。
 
-- [Traefik](./workload/traefik.yaml) (in the `a0008` namespace)
-- [Kured](./cluster-baseline-settings/kured.yaml) (in the `cluster-baseline-settings` namespace)
+- [Traefik](./workload/traefik.yaml) (`a0008` namespace の中)
+- [Kured](./cluster-baseline-settings/kured.yaml) ( `cluster-baseline-settings` namespace の中)
 
-:bulb: This reference implementation ships with two queries (_All collected Prometheus information_ and _Kubenertes node reboot requested_) in a Log Analytics Query Pack as an example of how you can write your own and manage them via ARM templates.
+:bulb: このリファレンス実装には、Log Analytics クエリ パックに 2 つのクエリ (_All collected Prometheus information_ および _Kubenertes node reboot requested_) が含まれています。これらは、ARM テンプレートを介して自分自身を書き込み、管理する方法の例です。
 
-### Steps
+### 手順5：Azure Monitor for containers の検証 (Prometheus メトリック)
 
 1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`).
 1. Select your Log Analytic Workspace resource and open the _Logs_ blade.
 1. Find the one of the above queries in the _Containers_ category.
 1. You are able to select and execute the saved query over the scraped metrics.
 
-## Validate workload logs
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動します。
+2. Log Analytics ワークスペース リソースを選択し、_Logs_ ブレードを開きます。
+3. _containers_ カテゴリの上記のクエリの 1 つを見つけます。
+4. 保存されたクエリを選択して、スクレイプされたメトリックに対して実行できます。
 
-The example workload uses the standard dotnet logger interface, which are captured in `ContainerLogs` in Azure Monitor. You could also include additional logging and telemetry frameworks in your workload, such as Application Insights. Here are the steps to view the built-in application logs.
+## ワークロード ログの検証
 
-### Steps
+例のワークロードでは、標準の dotnet ロガー インターフェイスが使用されています。これらは、Azure Monitor の `ContainerLogs` にキャプチャされます。ワークロードには、Application Insights などの追加のロギングとテレメトリ フレームワークを含めることもできます。ここでは、組み込みのアプリケーション ログを表示する手順を示します。
 
-1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`).
-1. Select your Log Analytic Workspace resource and open the _Logs_ blade.
-1. Execute the following query.
+### 手順6：ワークロード ログの検証
 
-   ```
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動します。
+2. Log Analytics ワークスペース リソースを選択し、_Logs_ ブレードを開きます。
+3. 下記のクエリを実行します。
+
+   ```kusto
    ContainerLogV2
    | where ContainerName == "aspnet-webapp-sample"
    | project TimeGenerated, LogMessage, Computer, ContainerName, ContainerId
    | order by TimeGenerated desc
    ```
 
-## Validate Azure Alerts
+## Azure アラートの検証
 
-Azure will generate alerts on the health of your cluster and adjacent resources. This reference implementation sets up multiple alerts that you can subscribe to.
+Azure は、クラスターと隣接するリソースの状態に関するアラートを生成します。このリファレンス実装では、複数のアラートを設定して、サブスクライブできるようにします。
 
-### Steps
+### 手順7：Azure アラートの検証
 
-An alert based on [Azure Monitor for containers information using a Kusto query](https://learn.microsoft.com/azure/azure-monitor/insights/container-insights-alerts) was configured in this reference implementation.
+[Azure モニター for containers による Kusto クエリを使用した情報に基づくアラート](https://docs.microsoft.com/ja-jp/azure/azure-monitor/insights/container-insights-alerts) がこのリファレンス実装で構成されています。
 
-1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`).
-1. Select _Alerts_, then _Alert Rules_.
-1. There is an alert titled "[your cluster name] Scheduled Query for Pod Failed Alert" that will be triggered based on the custom query response.
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動します。
+2. _Alerts_ を選択し、_Alert Rules_ を選択します。
+3. "[your cluster name] Scheduled Query for Pod Failed Alert" というタイトルのアラートがあり、カスタム クエリの応答に基づいてトリガーされます。
 
-An [Azure Advisor Alert](https://learn.microsoft.com/azure/advisor/advisor-overview) was configured as well in this reference implementation.
+[Azure Advisor アラート](https://docs.microsoft.com/ja-jp/azure/advisor/advisor-alerts) がこのリファレンス実装で構成されています。
 
-1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`).
-1. Select _Alerts_, then _Alert Rules_.
-1. There is an alert called "AllAzureAdvisorAlert" that will be triggered based on new Azure Advisor alerts.
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動します。
+2. _Alerts_ を選択し、_Alert Rules_ を選択します。
+3. "AllAzireAdvisorAlert" というタイトルのアラートがあり、新しい Azure Advisor アラートに基づいてトリガーされます。
 
-A series of metric alerts were configured as well in this reference implementation.
+メトリックアラートもこのリファレンス実装で構成されています。
 
-1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`).
-1. Select your cluster, then _Insights_.
-1. Select _Recommended alerts_ to see those enabled. (Feel free to enable/disable as you see fit.)
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動します。
+2. クラスターを選択し、_Insights_ を選択します。
+3. _Recommended alerts_ を選択して、有効になっているアラートを確認します。 (必要に応じて有効化/無効化を行ってください。)
 
-## Validate Azure Container Registry image pulls
+## Azure Container Registry イメージのプルの検証
 
-If you configured your third-party images to be pulled from your Azure Container Registry vs public registries, you can validate that the container registry logs show `Pull` logs for your cluster when you applied your flux configuration.
+サードパーティーイメージを Azure Container Registry からプルするように構成した場合、flux 構成を適用したときに、コンテナ レジストリ ログにクラスターの `Pull` ログが表示されることを確認できます。
 
-### Steps
+### 手順8：Azure Container Registry イメージのプルの検証
 
-1. In the Azure Portal, navigate to your AKS cluster resource group (`rg-bu0001a0008`) and then your Azure Container Registry instances (starts with `acraks`).
-1. Select _Logs_.
-1. Execute the following query, for whatever time range is appropriate.
+1. Azure Portal で AKS クラスター リソースグループ (`rg-bu0001a0008`) に移動し、Azure Container Registry インスタンス (`acraks` で始まる) を選択します。
+2. _Logs_ を選択します。
+3. 以下のクエリを実行し、適切な時間範囲を選択します。
 
    ```kusto
    ContainerRegistryRepositoryEvents
    | where OperationName == 'Pull'
    ```
 
-1. You should see logs for kured. You'll see multiple for some as the image was pulled to multiple nodes to satisfy ReplicaSet/DaemonSet placement.
+4. kured のログが表示されます。ReplicaSet/DaemonSet の配置を満たすために、複数のノードにイメージがプルされたため、いくつかのログが複数表示されます。
 
-## Next step
+## 次のステップ
 
-:arrow_forward: [Clean Up Azure Resources](./12-cleanup.md)
+:arrow_forward: [Azure Resources のクリーンアップ](./12-cleanup.md)

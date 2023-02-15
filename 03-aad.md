@@ -20,21 +20,14 @@
 
 > :book: コントソ自転車 Azure AD チームは、すべての AKS クラスターへの管理アクセスをセキュリティ グループに基づいて行う必要があります。これは、BU0001 ビジネス ユニットの Application ID a0008 用に構築されている新しい AKS クラスターに適用されます。Kubernetes RBAC は AAD ベースであり、ユーザーの AAD グループ メンバーシップに基づいてアクセスが付与されます。
 
-1. Query and save your Azure subscription's tenant id.
+1. Azure サブスクリプションのテナントID をクエリして保存します。
 
    ```bash
    export TENANTID_AZURERBAC_AKS_BASELINE=$(az account show --query tenantId -o tsv)
    echo TENANTID_AZURERBAC_AKS_BASELINE: $TENANTID_AZURERBAC_AKS_BASELINE
    ```
 
-2. Azure サブスクリプションのテナントID をクエリして保存します。
-
-   ```bash
-   export TENANTID_AZURERBAC_AKS_BASELINE=$(az account show --query tenantId -o tsv)
-   echo TENANTID_AZURERBAC_AKS_BASELINE: $TENANTID_AZURERBAC_AKS_BASELINE
-   ```
-
-3. Contoso Bicycle Azure AD チームとして役割を果たして、Kubernetes Cluster API の認証が関連付けられるテナントにログインします。
+2. Contoso Bicycle Azure AD チームとして役割を果たして、Kubernetes Cluster API の認証が関連付けられるテナントにログインします。
 
    > :bulb: Kubernetes 認証に現在のユーザー アカウントの Azure AD テナントを使用する予定の場合は、`az login` コマンドをスキップします。
 
@@ -44,7 +37,7 @@
    echo TENANTID_K8SRBAC_AKS_BASELINE: $TENANTID_K8SRBAC_AKS_BASELINE
    ```
 
-4. Azure AD セキュリティ グループを作成/識別します。これは、[Kubernetes Cluster Admin](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) ロール `cluster-admin` にマップされます。
+3. Azure AD セキュリティ グループを作成/識別します。これは、[Kubernetes Cluster Admin](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) ロール `cluster-admin` にマップされます。
 
    既存の適切なクラスター管理サービス アカウントのセキュリティ グループをすでに持っている場合は、そのグループを使用し、新しいグループを作成しないでください。既存のグループを使用するか、Azure AD 管理者が使用するために作成したグループを使用する場合は、参照実装全体でグループ名と ID を更新する必要があります。
 
@@ -107,9 +100,9 @@
 AKS は、2 つの異なるモードで Kubernetes を Azure AD とバックアップできます。1 つは、Azure AD とクラスターの Kubernetes `ClusterRoleBindings`/`RoleBindings` の直接の関連付けです。これは、Kubernetes RBAC をバックアップする Azure AD を使用するかどうかにかかわらず、Azure リソースのバックアップを行っているテナントと同じか異なるかにかかわらず可能です。ただし、Azure リソース (Azure RBAC ソース) のバックアップを行っているテナントが、Kubernetes RBAC をバックアップする予定のテナントと同じ場合、Azure RBAC を使用して Azure AD とクラスターの間に間接的な関連付けを行うことで、クラスターの直接の `RoleBinding` の操作を介して Azure AD とバックアップできます。この手順を実行するときは、グループとユーザーを管理するために Azure AD で必要な高い権限を持っていないため、別のテナントにクラスターを関連付ける必要があったかもしれません。ただし、本番環境に適用する場合は、テナントが同じ場合は、Kubernetes RBAC のバックストアとして Azure RBAC を使用していることを確認してください。両方のケースは、Azure AD と AKS の間の統合された認証を利用します。Azure RBAC は、通常、組織のガバナンス戦略により良く合致するように、クラスター内の yaml ベースの管理の代わりに Azure RBAC による制御を高めます。
 
 
-### AKS RBAC の_[好ましい状態]_
+### AKS RBAC の _好ましい状態_
 
-このウィークスルーで単一のテナントを使用している場合、後ほどクラスターの展開ステップが、上記で作成したグループに必要なロールの割り当てを行います。具体的には、上記の手順では、ネームスペース `a0008` のネームスペース リーダーとして機能する Azure AD セキュリティ グループ `cluster-ns-a0008-readers-bu0001a000800` を作成し、Azure AD セキュリティ グループ `cluster-admins-bu0001a000800` にはクラスター管理者が含まれます。これらのグループの Object ID は、それぞれ 'Azure Kubernetes Service RBAC Reader' と 'Azure Kubernetes Service RBAC Cluster Admin' RBAC ロールに関連付けられ、クラスター内の適切なレベルにスコープされます。
+このウォークスルーで単一のテナントを使用している場合、後ほどクラスターの展開ステップが、上記で作成したグループに必要なロールの割り当てを行います。具体的には、上記の手順では、ネームスペース `a0008` のネームスペース リーダーとして機能する Azure AD セキュリティ グループ `cluster-ns-a0008-readers-bu0001a000800` を作成し、Azure AD セキュリティ グループ `cluster-admins-bu0001a000800` にはクラスター管理者が含まれます。これらのグループの Object ID は、それぞれ 'Azure Kubernetes Service RBAC Reader' と 'Azure Kubernetes Service RBAC Cluster Admin' RBAC ロールに関連付けられ、クラスター内の適切なレベルにスコープされます。
 
 Azure RBAC を認証アプローチとして使用することは、Azure リソース、AKS、および Kubernetes リソースの統合された管理とアクセス制御を可能にするため、最終的に好ましい方法です。この時点で、典型的なクラスター アクセス パターンを表す 4 つの [Azure RBAC ロール](https://learn.microsoft.com/azure/aks/manage-azure-rbac#create-role-assignments-for-users-to-access-cluster) があります。
 

@@ -1,61 +1,62 @@
-# Deploy the workload (ASP.NET Core Docker web app)
+# ワークロードのデプロイ（ASP.NET Core Docker Web アプリ）
 
-The cluster now has an [Traefik configured with a TLS certificate](./09-secret-management-and-ingress-controller.md). The last step in the process is to deploy the workload, which will demonstrate the system's functions.
+クラスターは [TLS 証明書を使用した Traefik が構成されています](./09-secret-management-and-ingress-controller.md)。プロセスの最後のステップは、ワークロードをデプロイすることです。これにより、システムの機能が示されます。
 
-## Steps
+## 手順
 
-> :book: The Contoso app team is about to conclude this journey, but they need an app to test their new infrastructure. For this task they've picked out the venerable [ASP.NET Core Docker sample web app](https://github.com/dotnet/dotnet-docker/tree/main/samples/aspnetapp).
+> :book: コントソー・アプリチームはこの旅の最後のステップに近づいていますが、新しいインフラストラクチャをテストするためのアプリが必要です。このタスクには、古くから愛されてきた [ASP.NET Core Docker サンプル Web アプリ](https://github.com/dotnet/dotnet-docker/tree/main/samples/aspnetapp) を選択しました。
 
-1. Customize the host name of the Ingress resource to match your custom domain. _(You can skip this step if domain was left as contoso.com.)_
+1. カスタマイズされたドメイン名を使用して、Ingress リソースのホスト名を変更します。 _(ドメインが contoso.com のままの場合は、このステップをスキップできます。)_
 
    ```bash
    sed -i "s/contoso.com/${DOMAIN_NAME_AKS_BASELINE}/" workload/aspnetapp-ingress-patch.yaml
    ```
 
-   Note, that if you are on macOS, you might need to use the following command instead:
+   > macOS を使用している場合は、次のコマンドを使用する必要があることに注意してください。
 
    ```bash
    sed -i '' 's/contoso.com/'"${DOMAIN_NAME_AKS_BASELINE}"'/g' workload/aspnetapp-ingress-patch.yaml
    ```
 
-1. Deploy the ASP.NET Core Docker sample web app
+2. ASP.NET Core Docker サンプル Web アプリをデプロイします
 
-   > The workload definition demonstrates the inclusion of a Pod Disruption Budget rule, ingress configuration, and pod (anti-)affinity rules for your reference.
+   > ワークロードの定義には、Pod Disruption Budget ルール、Ingress 設定、および参照用の Pod (反) アフィニティ ルールが含まれています。
 
    ```bash
    kubectl apply -k workload/
    ```
 
-1. Wait until is ready to process requests running
+3. 処理リクエストを実行する準備ができたるまで待ちます
 
    ```bash
    kubectl wait -n a0008 --for=condition=ready pod --selector=app.kubernetes.io/name=aspnetapp --timeout=90s
    ```
 
-1. Check your Ingress resource status as a way to confirm the AKS-managed Internal Load Balancer is functioning
+4. Ingress リソースのステータスを確認して、AKS で管理されている Internal Load Balancer が機能していることを確認します
 
-   > In this moment your Ingress Controller (Traefik) is reading your ingress resource object configuration, updating its status, and creating a router to fulfill the new exposed workloads route. Please take a look at this and notice that the address is set with the Internal Load Balancer IP from the configured subnet.
+   > この瞬間、Ingress コントローラー (Traefik) は Ingress リソースオブジェクトの構成を読み取り、ステータスを更新し、新しい公開されたワークロードのルートを満たすルーターを作成しています。これを見てみて、構成されたサブネットから Internal Load Balancer IP が設定されていることに注意してください。
 
    ```bash
    kubectl get ingress aspnetapp-ingress -n a0008
    ```
 
-   > At this point, the route to the workload is established, SSL offloading configured, a network policy is in place to only allow Traefik to connect to your workload, and Traefik is configured to only accept requests from App Gateway.
+   > この時点で、ワークロードへのルートが確立され、SSL オフロードが構成され、Traefik だけがワークロードに接続できるようにネットワークポリシーが設定され、Traefik が App Gateway からのリクエストのみを受け入れるように構成されています。
 
-1. Test direct workload access from unauthorized network loactions. _Optional._
+5. 許可されていないネットワークロケーションからワークロードに直接アクセスするテストを実行します。 _オプションです。_
 
-   > You should expect a `403` HTTP response from your ingress controller if you attempt to connect to it _without_ going through the App Gateway. Likewise, if any workload other than the ingress controller attempts to reach the workload, the traffic will be denied via network policies.
+
+   > App Gateway を介さずに接続しようとすると、Ingress コントローラーから `403` HTTP レスポンスを受け取るはずです。同様に、Ingress コントローラー以外のワークロードがワークロードに到達しようとすると、ネットワークポリシーによってトラフィックが拒否されます。
 
    ```bash
    kubectl run curl -n a0008 -i --tty --rm --image=mcr.microsoft.com/azure-cli --overrides='[{"op":"add","path":"/spec/containers/0/resources","value":{"limits":{"cpu":"200m","memory":"128Mi"}}},{"op":"add","path":"/spec/containers/0/securityContext","value":{"readOnlyRootFilesystem": true}}]' --override-type json  --env="DOMAIN_NAME=${DOMAIN_NAME_AKS_BASELINE}"
-   
-   # From within the open shell now running on a container inside your cluster
+
+   # クラスター内のコンテナで実行中のオープンシェルから次のコマンドを実行します
    curl -kI https://bu0001a0008-00.aks-ingress.$DOMAIN_NAME -w '%{remote_ip}\n'
    exit
    ```
 
-   > From this container shell, you could also try to directly access the workload via `curl -I http://<aspnetapp-service-cluster-ip>`. Instead of getting back a `200 OK`, you'll receive a network timeout because of the [`allow-only-ingress-to-workload` network policy](./cluster-manifests/a0008/ingress-network-policy.yaml) that is in place.
+   > このコンテナ シェルから、`curl -I http://<aspnetapp-service-cluster-ip>` を介してワークロードに直接アクセスすることもできます。`200 OK` を取得する代わりに、[`allow-only-ingress-to-workload` ネットワーク ポリシー](./cluster-manifests/a0008/ingress-network-policy.yaml) が適用されているため、ネットワーク タイムアウトが発生します。
 
-### Next step
+### 次のステップ
 
-:arrow_forward: [End-to-End Validation](./11-validation.md)
+:arrow_forward: [エンド・ツー・エンドの検証](./11-validation.md)

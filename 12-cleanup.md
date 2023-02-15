@@ -1,14 +1,14 @@
-# Clean up
+# クリーンアップ
 
-After you are done exploring your deployed [AKS baseline cluster](./), you'll want to delete the created Azure resources to prevent undesired costs from accruing. Follow these steps to delete all resources created as part of this reference implementation.
+デプロイされた [AKS ベースライン クラスター](./) を探索した後、作成された Azure リソースを削除して、意図しないコストが蓄積されないようにする必要があります。 このリファレンス実装の一部として作成されたすべてのリソースを削除するには、次の手順に従います。
 
-## Steps
+## 手順
 
-1. Delete the resource groups as a way to delete all contained Azure resources.
+1. Azure リソースに含まれるすべてのリソースを削除するために、リソース グループを削除します。
 
-   > To delete all Azure resources associated with this reference implementation, you'll need to delete the three resource groups created.
+   > このリファレンス実装で、関連したすべての Azure リソースを削除するには、作成された 3 つのリソース グループを削除する必要があります。
 
-   :warning: Ensure you are using the correct subscription, and validate that the only resources that exist in these groups are ones you're okay deleting.
+   :warning: 正しいサブスクリプションを使用していることを確認し、これらのグループに存在するリソースが削除するものであることを確認してください。
 
    ```bash
    az group delete -n rg-bu0001a0008
@@ -16,26 +16,30 @@ After you are done exploring your deployed [AKS baseline cluster](./), you'll wa
    az group delete -n rg-enterprise-networking-hubs
    ```
 
-1. Purge Azure Key Vault
+2. Azure Key Vault を削除する
 
-   > Because this reference implementation enables soft delete on Key Vault, execute a purge so your next deployment of this implementation doesn't run into a naming conflict.
+   > このリファレンス実装では、Key Vault でソフト削除が有効になっているため、名前の衝突が発生しないように、削除を実行します。
 
    ```bash
    az keyvault purge -n $KEYVAULT_NAME_AKS_BASELINE
    ```
 
-1. If any temporary changes were made to Azure AD or Azure RBAC permissions consider removing those as well.
+3. Azure AD または Azure RBAC の権限に一時的な変更が加えられている場合は、それらも削除します。
 
-1. [Remove the Azure Policy assignments](https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Compliance) scoped to the cluster's resource group. To identify those created by this implementation, look for ones that are prefixed with `[your-cluster-name] `.
+4. [Remove the Azure Policy assignments](https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Compliance) scoped to the cluster's resource group. To identify those created by this implementation, look for ones that are prefixed with `[your-cluster-name] `.
 
-## Automation
+4. [Azure Policy の割り当てを削除します](https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Compliance)。 この実装によって作成されたものを特定するには、`[your-cluster-name]` で始まるものを探します。
 
-Before you can automate a process, it's important to experience the process in a bit more raw form as was presented here. That experience allows you to understand the various steps, inner- & cross-team dependencies, and failure points along the way. However, the steps provided in this walkthrough are not specifically designed with automation in mind. It does present a perspective on some common seperation of duties often encountered in organizations, but that might not align with your organization.
+## 自動化
 
-Now that you understand the components involved and have identified the shared responsibilities between your team and your greater organization, you are encouraged to build repeatable deployment processes around your final infrastructure and cluster bootstrapping. Please refer to the [AKS baseline automation guidance](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) to learn how GitHub Actions combined with Infrastructure as Code can be used to facilitate this automation. That guidance is based on the same architecture foundations you've walked through here.
+プロセスを自動化する前に、ここで提示されたようなより生の形式でプロセスを体験することが重要です。 その経験により、さまざまなステップ、内部およびチーム間の依存関係、および途中の失敗点を理解できます。 ただし、このウォークスルーで提供される手順は、自動化を意識して設計されていません。 これは、組織でよく遭遇する一般的な職務分担の観点を提示しますが、組織とは一致しない場合があります。
 
-> Note: The [AKS baseline automation guidance](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) implementation strives to stay in sync with this repo, but may slightly deviate in various decisions made, may introduce new features, or not yet have a feature that is used in this repo. The are functionally aligned by design, but not necessarily identical. Use that repo to explore the automation potential, while this repo is used for the core architectural guidance.
 
-### Next step
+今、関与するコンポーネントを理解し、チームと組織の間の共有された責任を特定したので、最終的なインフラストラクチャとクラスターのブートストラッピングの周りに繰り返し使用可能なデプロイメント プロセスを構築することをお勧めします。 [AKS ベースライン自動化ガイダンス](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) は、GitHub Actions と Infrastructure as Code を組み合わせて、この自動化を容易にする方法を学ぶためのものです。 そのガイダンスは、ここで歩んだ同じアーキテクチャの基礎に基づいています。
 
-:arrow_forward: [Review additional information in the main README](./README.md#broom-clean-up-resources)
+> Note: [AKS ベースライン自動化ガイダンス](https://github.com/Azure/aks-baseline-automation#aks-baseline-automation) 実装は、このリポジトリと同期を維持しようと努めていますが、さまざまな決定にわずかに偏りが生じる可能性があり、新しい機能を導入するか、このリポジトリで使用されている機能がまだない可能性があります。 それらは、設計上機能的に整合していますが、必ずしも同一ではありません。 そのリポジトリを使用して、自動化の潜在的な可能性を探索し、このリポジトリはコア アーキテクチャ ガイダンスのために使用します。
+
+### 次のステップ
+
+:arrow_up_small: [概要へ戻る](./README.md#overview)
+
