@@ -137,6 +137,17 @@ AKS ベースラインは、次の追加のリファレンス実装の基礎と�
 - [Terraform](https://learn.microsoft.com/azure/developer/terraform/create-k8s-cluster-with-tf-and-aks)
 - [dapr](https://github.com/dapr/dapr)
 
+- クラスターのライフサイクル管理に関する SDLC と GitOps
+- ワークロード SDLC 統合（[Bridge to Kubernetes](https://learn.microsoft.com/visualstudio/containers/bridge-to-kubernetes) などの概念、高度なデプロイメント テクニック、[Draft](https://learn.microsoft.com/azure/aks/draft) など）
+- コンテナー セキュリティ
+- 複数の（関連しているかどうか）ワークロードを所有する同じチーム
+- 複数ワークロードを所有する異なるチーム（組織内で共有プラットフォームとしての AKS）
+- クラスター内に含まれる状態（PVC など）
+- Windows ノード プール
+- スケール ゼロ ノード プールとイベント ベースのスケーリング（KEDA）
+- [Terraform](https://learn.microsoft.com/azure/developer/terraform/create-k8s-cluster-with-tf-and-aks)
+- [dapr](https://github.com/dapr/dapr)
+
 このスペースを維持するために、これらのようなトピックに関するリファレンス実装ガイダンスを構築しています。さらにガイダンスが提供されると、このベースライン AKS 実装が開始点として使用されます。このベースラインを使用して構築されたパターンを提案したい場合は、[お問い合わせください](./CONTRIBUTING.md)。
 
 ## 最後に
